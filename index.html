@@ -1,0 +1,2543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WOC Follow-Up Board</title>
+<meta name="description" content="Follow-up tracker for work orders moving through the contractor lifecycle.">
+<meta name="theme-color" content="#141B18">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WOC Board">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+/* WOC Follow-Up Board
+   Layout: dark control bars frame a concrete-grey board; each work order is a square trading card
+   with a stage-colored band on top and a face that turns green when follow-up is due. */
+:root {
+  --bg: #E1E6E3;
+  --bg-sunk: #D2D9D5;
+  --surface: #FFFFFF;
+  --surface-2: #F1F4F2;
+  --ink: #121A16;
+  --ink-2: #45514C;
+  --ink-3: #66726D;
+  --line: #C3CCC7;
+  --line-soft: #DCE2DE;
+  --bar: #141B18;
+  --bar-raise: #26302C;
+  --bar-ink: #EEF3F0;
+  --bar-ink-2: #9AAAA2;
+  --frame: #FFFFFF;
+  --ar: #008A4A;
+  --ar-ink: #FFFFFF;
+  --done: #96938A;
+  --done-ink: #191A17;
+  --danger: #C2362D;
+  --danger-ink: #FFFFFF;
+  --warn: #A9520B;
+  --focus: #1D63D8;
+  --scrim: rgba(9, 14, 12, 0.55);
+  --shadow-card: 0 1px 2px rgba(18, 26, 22, 0.10), 0 6px 16px rgba(18, 26, 22, 0.09);
+  --shadow-pop: 0 14px 40px rgba(9, 14, 12, 0.28);
+  --font-display: "Barlow Condensed", "Avenir Next Condensed", "Roboto Condensed", sans-serif-condensed, "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --note-on-ar: rgba(255, 255, 255, 0.17);
+  --note-on-done: rgba(20, 22, 19, 0.11);
+  --stripe: #FFFFFF;
+  --knob: #FFFFFF;
+  --bar-h: 62px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1210;
+    --bg-sunk: #090C0B;
+    --surface: #19211E;
+    --surface-2: #212A26;
+    --ink: #E4ECE8;
+    --ink-2: #A9B6B0;
+    --ink-3: #85928C;
+    --line: #34403B;
+    --line-soft: #26302C;
+    --bar: #161E1B;
+    --bar-raise: #26302C;
+    --bar-ink: #EEF3F0;
+    --bar-ink-2: #93A39B;
+    --frame: #232C29;
+    --warn: #F0AE45;
+    --focus: #6EA8FF;
+    --scrim: rgba(0, 0, 0, 0.62);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.45), 0 6px 18px rgba(0, 0, 0, 0.35);
+    --shadow-pop: 0 14px 40px rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1210;
+  --bg-sunk: #090C0B;
+  --surface: #19211E;
+  --surface-2: #212A26;
+  --ink: #E4ECE8;
+  --ink-2: #A9B6B0;
+  --ink-3: #85928C;
+  --line: #34403B;
+  --line-soft: #26302C;
+  --bar: #161E1B;
+  --bar-raise: #26302C;
+  --bar-ink: #EEF3F0;
+  --bar-ink-2: #93A39B;
+  --frame: #232C29;
+  --warn: #F0AE45;
+  --focus: #6EA8FF;
+  --scrim: rgba(0, 0, 0, 0.62);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.45), 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 14px 40px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px);
+  z-index: 22;
+  background: var(--bar);
+}
+body.locked { overflow: hidden; }
+img { max-width: 100%; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; touch-action: manipulation; text-align: inherit; }
+button:disabled { cursor: default; }
+a { color: inherit; }
+input, textarea, select { font: inherit; color: var(--ink); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+svg { flex: none; }
+h1, h2, h3, h4 { text-wrap: balance; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.muted { color: var(--ink-3); }
+
+/* ---------- Header ---------- */
+.app-head {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 20;
+  background: var(--bar);
+  color: var(--bar-ink);
+  padding-top: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; }
+.head-title { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 4px 8px 4px 0; border-radius: 10px; }
+.head-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.head-title > svg { width: 20px; height: 20px; color: var(--bar-ink-2); }
+.head-meta { display: flex; align-items: baseline; gap: 6px; color: var(--bar-ink-2); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hm-num { font-family: var(--font-display); font-weight: 700; font-size: 25px; line-height: 1; color: var(--bar-ink); }
+.hm-due {
+  align-self: center;
+  margin-left: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--ar);
+  color: var(--ar-ink);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.hm-date { font-weight: 600; font-size: 14px; color: var(--bar-ink); }
+
+.chip {
+  display: inline-grid;
+  place-items: center;
+  min-width: 36px;
+  height: 28px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: var(--sc);
+  color: var(--sc-ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.chip svg { width: 17px; height: 17px; }
+
+.rail { display: flex; gap: 3px; padding: 4px 0 6px; }
+.rail-seg { position: relative; flex: 1 1 0; min-width: 0; height: 30px; display: flex; align-items: center; border-radius: 4px; }
+.rail-seg i { display: block; width: 100%; height: 7px; border-radius: 3px; background: var(--sc); opacity: 0.55; transition: height 0.16s ease, opacity 0.16s ease; }
+.rail-seg.on i { height: 16px; opacity: 1; box-shadow: 0 0 0 2px var(--bar), 0 0 0 3.5px var(--bar-ink); }
+.rail-seg.due::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--bar-ink);
+}
+.rail-seg.on.due::after { top: -2px; }
+.head-strip {
+  height: 5px;
+  background: var(--sc);
+  margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+}
+
+/* ---------- Board ---------- */
+.board {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px calc(var(--bar-h) + 104px + env(safe-area-inset-bottom, 0px));
+  outline: none;
+}
+.board.enter-r { animation: enter-r 0.2s ease-out; }
+.board.enter-l { animation: enter-l 0.2s ease-out; }
+@keyframes enter-r { from { opacity: 0.35; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes enter-l { from { opacity: 0.35; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+
+.cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+
+/* ---------- Work order card ---------- */
+.woc {
+  container-type: inline-size;
+  position: relative;
+  aspect-ratio: 1 / 1;
+  max-width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+  border-radius: 18px;
+  background: var(--frame);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+.woc:not(.static):active { transform: scale(0.985); }
+.woc.static { aspect-ratio: auto; cursor: default; }
+.woc-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  min-height: 32px;
+  padding: 5px 11px;
+  border-radius: 13px 13px 5px 5px;
+  background: var(--sc);
+  color: var(--sc-ink);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+.woc-stage { font-family: var(--font-display); font-weight: 700; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.1; }
+.woc-tags { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.woc.emer .woc-band {
+  background-color: var(--sc);
+  background-image: repeating-linear-gradient(45deg, transparent 0 9px, var(--stripe) 9px 15px);
+}
+.woc.emer .woc-stage { margin-left: -5px; padding: 2px 7px; border-radius: 7px; background: var(--sc); }
+.woc.emer .woc-sample { background: var(--sc); }
+.woc-emer {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: var(--danger-ink);
+  box-shadow: 0 0 0 1.5px var(--stripe);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.woc-emer svg { width: 13px; height: 13px; }
+.woc-sample { font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1.5px solid currentColor; opacity: 0.9; }
+.woc-face {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border-radius: 5px 5px 13px 13px;
+  background: var(--ar);
+  color: var(--ar-ink);
+}
+.woc.done .woc-face, .woc.complete .woc-face { background: var(--done); color: var(--done-ink); }
+.woc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.woc-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; letter-spacing: 0.02em; text-align: right; }
+.woc-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.woc.done .woc-status::before, .woc.complete .woc-status::before { background: transparent; box-shadow: inset 0 0 0 2px currentColor; }
+.woc-ids { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; }
+.woc-ids > div { min-width: 0; }
+.woc-ids dt { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.8; }
+.woc-ids dd {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  font-size: clamp(19px, 6.6cqw, 27px);
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.woc-store {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 25px;
+  font-size: clamp(20px, 7.6cqw, 31px);
+  line-height: 1.02;
+  letter-spacing: 0.005em;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.woc-note { margin: -4px 0 0; padding: 6px 10px; border-radius: 9px; background: var(--note-on-ar); font-size: 15px; font-weight: 500; line-height: 1.3; min-width: 0; }
+.woc-note span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.woc.done .woc-note, .woc.complete .woc-note { background: var(--note-on-done); }
+.woc-dsf { margin-top: auto; font-size: 14.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.woc-foot { position: relative; padding-top: 10px; display: grid; gap: 3px; min-width: 0; }
+.woc-foot::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: currentColor; opacity: 0.32; }
+.woc-con { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.woc-con.none { opacity: 0.75; font-style: italic; }
+.woc-eta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 14.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.eta-today { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--ar-ink); color: var(--ar); }
+.woc.done .eta-today, .woc.complete .eta-today { background: var(--done-ink); color: var(--done); }
+
+/* ---------- Overview ---------- */
+.ov-search { display: grid; gap: 10px; margin-bottom: 16px; }
+.seg { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.seg::-webkit-scrollbar { display: none; }
+.seg-btn {
+  flex: 1 0 auto;
+  min-height: 38px;
+  padding: 0 13px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 14.5px;
+  white-space: nowrap;
+  text-align: center;
+}
+.seg-btn[aria-checked="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 6px 0 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-3);
+}
+.search-box:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px rgba(29, 99, 216, 0.18); }
+.search-box > svg { width: 20px; height: 20px; }
+.search-box input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 17px;
+  padding: 12px 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.search-box input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+.search-box input::placeholder { color: var(--ink-3); }
+.icon-btn { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: inherit; }
+.icon-btn svg { width: 22px; height: 22px; }
+.ov-res-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin: 4px 2px 12px; }
+.ov-res-head h2 { margin: 0; font-family: var(--font-display); font-size: 24px; font-weight: 700; }
+.ov-res-head span { color: var(--ink-2); font-size: 14px; overflow-wrap: anywhere; }
+.empty-note { margin: 8px 2px; color: var(--ink-2); }
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.5px dashed var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.banner p { margin: 0; flex: 1 1 220px; }
+.banner.alert { border-style: solid; border-color: var(--danger); color: var(--ink); }
+
+.welcome { margin-bottom: 16px; padding: 18px; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-card); }
+.welcome h2 { margin: 0 0 6px; font-family: var(--font-display); font-size: 26px; font-weight: 700; }
+.welcome p { margin: 0 0 14px; color: var(--ink-2); max-width: 60ch; }
+
+.fu-btn {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 14px;
+  align-items: center;
+  padding: 14px 16px 14px 18px;
+  border-radius: 18px;
+  background: var(--ar);
+  color: var(--ar-ink);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+}
+.fu-num { grid-row: 1 / 3; font-family: var(--font-display); font-weight: 700; font-size: 60px; line-height: 0.9; font-variant-numeric: tabular-nums; }
+.fu-txt { align-self: end; font-family: var(--font-display); font-weight: 700; font-size: 25px; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; }
+.fu-hint { align-self: start; font-size: 13.5px; opacity: 0.88; }
+.fu-btn > svg { grid-column: 3; grid-row: 1 / 3; width: 28px; height: 28px; transition: transform 0.2s ease; }
+.fu-btn[aria-expanded="true"] > svg { transform: rotate(180deg); }
+.fu-btn.zero { background: var(--surface); color: var(--ink); border: 1.5px solid var(--line); box-shadow: none; }
+.ov-list { margin-top: 14px; }
+
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.tile {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  padding: 14px 14px 13px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+}
+.tile-num { font-family: var(--font-display); font-weight: 700; font-size: 42px; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile.warn .tile-num { color: var(--warn); }
+.tile.good .tile-num { color: var(--ar); }
+.tile-lbl { font-weight: 700; font-size: 15px; }
+.tile-sub { font-size: 13px; color: var(--ink-2); }
+.tile[aria-expanded="true"] { box-shadow: var(--shadow-card), inset 0 0 0 2px var(--ink); }
+
+.oldest {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 14px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+}
+.oldest-lbl { grid-column: 1 / -1; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.oldest-age { font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 1; }
+.oldest-who { grid-column: 1 / -1; font-size: 14.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+.oldest .chip { justify-self: end; }
+
+.section-title { margin: 22px 2px 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.by-stage { margin: 0; padding: 4px 0; list-style: none; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-card); overflow: hidden; }
+.by-stage li + li { border-top: 1px solid var(--line-soft); }
+.bs-row { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 54px; padding: 8px 16px; text-align: left; }
+.bs-names { display: grid; gap: 4px; min-width: 0; }
+.bs-short { font-weight: 700; font-size: 15.5px; line-height: 1.1; }
+.bs-full { font-size: 12.5px; color: var(--ink-3); }
+.bs-bar { display: block; height: 4px; border-radius: 2px; background: var(--sc); min-width: 3px; }
+.bs-bar.zero { visibility: hidden; }
+.bs-nums { display: grid; justify-items: end; gap: 2px; }
+.bs-count { font-family: var(--font-display); font-weight: 700; font-size: 25px; line-height: 1; font-variant-numeric: tabular-nums; }
+.bs-due { font-size: 12px; font-weight: 700; color: var(--ar); white-space: nowrap; }
+.by-stage-total { margin: 10px 2px 0; color: var(--ink-2); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+.ov-foot { display: grid; justify-items: center; gap: 8px; margin-top: 26px; }
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  font-weight: 700;
+  font-size: 16px;
+}
+.settings-btn svg { width: 22px; height: 22px; }
+.backup-note { margin: 0; font-size: 13px; color: var(--ink-3); }
+.backup-note.stale { color: var(--warn); font-weight: 600; }
+
+/* ---------- Stage view ---------- */
+.stage-intro { margin: 0 2px 14px; }
+.stage-title { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 24px; line-height: 1.1; }
+.stage-title .num { color: var(--ink-3); margin-right: 4px; }
+.stage-sub { margin: 3px 0 0; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.empty { padding: 30px 20px; border-radius: 18px; border: 2px dashed var(--line); text-align: center; color: var(--ink-2); }
+.empty strong { display: block; margin-bottom: 4px; font-family: var(--font-display); font-size: 21px; color: var(--ink); }
+.empty p { margin: 0 auto; max-width: 44ch; }
+
+/* ---------- Bottom bar + FAB ---------- */
+.app-foot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: calc(var(--bar-h) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  background: var(--bar);
+  color: var(--bar-ink);
+}
+.foot-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 46px;
+  padding: 0 12px 0 6px;
+  border-radius: 12px;
+  background: var(--bar-raise);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  justify-self: start;
+}
+.foot-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.foot-btn.next { justify-self: end; padding: 0 6px 0 12px; }
+.foot-btn svg { width: 24px; height: 24px; }
+.foot-btn:disabled { opacity: 0.3; }
+.foot-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--sc); flex: none; margin: 0 4px; }
+.foot-pos { font-size: 13px; color: var(--bar-ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fab {
+  position: fixed;
+  z-index: 21;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--bar-h) + 16px + env(safe-area-inset-bottom, 0px));
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ar);
+  color: var(--ar-ink);
+  box-shadow: 0 0 0 4px var(--bg), 0 8px 22px rgba(0, 50, 27, 0.4);
+}
+.fab svg { width: 30px; height: 30px; }
+.fab:active { transform: scale(0.95); }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  z-index: 90;
+  left: 50%;
+  bottom: calc(var(--bar-h) + 18px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: max-content;
+  max-width: min(520px, calc(100% - 32px));
+  min-height: 52px;
+  padding: 8px 8px 8px 16px;
+  border-radius: 14px;
+  background: var(--bar);
+  color: var(--bar-ink);
+  box-shadow: var(--shadow-pop), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  opacity: 0;
+  transform: translate(-50%, 14px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast-msg { font-size: 15px; font-weight: 600; min-width: 0; }
+.toast-act {
+  flex: none;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--bar-raise);
+  color: var(--bar-ink);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.toast-timer { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--ar); transform-origin: left center; transform: scaleX(0); }
+.toast.timed .toast-timer { animation: toast-time 5s linear forwards; }
+@keyframes toast-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* ---------- Sheets ---------- */
+.sheet-wrap { position: fixed; inset: 0; z-index: 50; display: flex; }
+.sheet-scrim { position: absolute; inset: 0; background: var(--scrim); opacity: 0; transition: opacity 0.2s ease; }
+.sheet-wrap.open .sheet-scrim { opacity: 1; }
+.sheet { position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--surface); color: var(--ink); outline: none; }
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 56px;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: max(6px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line-soft);
+  flex: none;
+}
+.sheet-title { flex: 1 1 auto; min-width: 0; margin: 0; font-family: var(--font-display); font-size: 23px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sheet-head-x { display: flex; align-items: center; gap: 8px; }
+.sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px calc(28px + env(safe-area-inset-bottom, 0px));
+}
+.sheet-note { margin: 0 0 16px; color: var(--ink-2); font-size: 15px; }
+.sheet-note b { color: var(--ink); }
+
+.kind-page .sheet { width: 100%; height: 100%; opacity: 0; transform: translateY(28px); transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease; }
+.kind-page.open .sheet { opacity: 1; transform: none; }
+@media (min-width: 700px) {
+  .kind-page { align-items: center; justify-content: center; padding: 28px; }
+  .kind-page .sheet { max-width: 580px; height: auto; max-height: 100%; border-radius: 20px; box-shadow: var(--shadow-pop); overflow: hidden; }
+  .kind-page .sheet-head { padding-top: 0; }
+}
+.kind-dialog { align-items: center; justify-content: center; padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); }
+.kind-dialog .sheet { width: 100%; max-width: 420px; max-height: 100%; border-radius: 20px; box-shadow: var(--shadow-pop); opacity: 0; transform: scale(0.96); transition: transform 0.18s ease, opacity 0.18s ease; }
+.kind-dialog.open .sheet { opacity: 1; transform: none; }
+.kind-dialog .sheet-head { min-height: 0; padding: 20px 20px 2px; border: 0; }
+.kind-dialog .sheet-title { white-space: normal; font-size: 23px; line-height: 1.15; }
+.kind-dialog .sheet-body { padding: 8px 20px 20px; }
+.confirm-msg { color: var(--ink-2); font-size: 15.5px; }
+.confirm-msg p { margin: 0 0 10px; }
+.kind-menu { align-items: flex-start; justify-content: center; }
+.kind-menu .sheet { width: 100%; max-width: 560px; max-height: 88%; border-radius: 0 0 20px 20px; box-shadow: var(--shadow-pop); opacity: 0; transform: translateY(-14px); transition: transform 0.2s ease, opacity 0.16s ease; }
+.kind-menu.open .sheet { opacity: 1; transform: none; }
+.kind-menu .sheet-body { padding-block: 6px 12px; }
+
+.menu-list { list-style: none; margin: 0; padding: 0; }
+.menu-row { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 54px; padding: 6px 4px; border-radius: 12px; text-align: left; }
+.menu-row.on { background: var(--surface-2); box-shadow: inset 0 0 0 1.5px var(--line); }
+.menu-names { display: grid; min-width: 0; }
+.menu-row .chip, .bs-row .chip { width: 46px; }
+.menu-short { font-weight: 700; font-size: 16px; }
+.menu-full { font-size: 13px; color: var(--ink-3); }
+.menu-nums { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+.menu-count { font-family: var(--font-display); font-weight: 700; font-size: 22px; }
+.menu-due { padding: 2px 8px; border-radius: 999px; background: var(--ar); color: var(--ar-ink); font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 18px;
+  border-radius: 13px;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.15;
+  text-align: center;
+}
+.btn svg { width: 21px; height: 21px; }
+.btn:disabled { opacity: 0.45; }
+.btn-primary { background: var(--ink); color: var(--surface); }
+.btn-ink { background: var(--ink); color: var(--surface); }
+.btn-go { background: var(--ar); color: var(--ar-ink); }
+.btn-danger { background: var(--danger); color: var(--danger-ink); }
+.btn-ghost { background: var(--surface-2); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); }
+.btn-quiet { color: var(--ink-2); }
+.btn-wide { width: 100%; }
+
+/* ---------- Detail ---------- */
+.dt-actions { display: grid; gap: 10px; margin-bottom: 16px; }
+.btn-xl { width: 100%; min-height: 58px; font-size: 19px; border-radius: 15px; }
+.btn-stack { justify-content: space-between; padding: 8px 14px 8px 18px; text-align: left; }
+.btn-stack .lbl { display: grid; gap: 1px; }
+.btn-stack small { font-size: 13.5px; font-weight: 600; opacity: 0.9; }
+.btn-stack svg { width: 26px; height: 26px; }
+.btn-back {
+  justify-self: start;
+  min-height: 42px;
+  padding: 6px 14px 6px 8px;
+  border-radius: 11px;
+  background: var(--danger);
+  color: var(--danger-ink);
+  font-size: 14.5px;
+  gap: 6px;
+  max-width: 100%;
+}
+.btn-back small { font-weight: 600; opacity: 0.9; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-back svg { width: 18px; height: 18px; }
+.fu-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 16px;
+  border-radius: 15px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  color: var(--ink-2);
+  font-weight: 700;
+}
+.fu-state svg { width: 20px; height: 20px; }
+.fu-again { justify-content: flex-start; gap: 12px; padding: 8px 18px; background: var(--done); color: var(--done-ink); text-align: left; }
+.fu-again .lbl { display: grid; gap: 1px; }
+.fu-again small { font-size: 13.5px; font-weight: 600; opacity: 0.82; }
+.dt-sec { margin-top: 18px; }
+.dt-sec > h3, .dt-sec > summary { margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.kv { margin: 0; display: grid; }
+.kv > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
+.kv dt { color: var(--ink-2); font-size: 14.5px; flex: none; }
+.kv dd { margin: 0; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kv dd a { text-decoration: none; border-bottom: 1.5px solid var(--line); }
+.dot { width: 10px; height: 10px; border-radius: 3px; background: var(--sc); flex: none; }
+.mini { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: var(--ink-2); background: var(--surface-2); flex: none; }
+.mini svg { width: 18px; height: 18px; }
+.eta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); }
+.eta-row strong { font-size: 17px; font-variant-numeric: tabular-nums; }
+.con-name { margin: 2px 0 2px; font-family: var(--font-display); font-weight: 700; font-size: 25px; line-height: 1.1; overflow-wrap: anywhere; }
+.con-notes { margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); }
+.con-notes h4 { margin: 0 0 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.con-notes p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dt-sec > h3 label { cursor: pointer; }
+.switch {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 32px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--line);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.switch::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--knob);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease;
+}
+.switch:checked { background: var(--danger); }
+.switch:checked::before { transform: translateX(20px); }
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 64px;
+  padding: 10px 14px 10px 16px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  cursor: pointer;
+}
+.switch-row:has(.switch:checked) { box-shadow: inset 0 0 0 2px var(--danger); }
+.switch-text { display: grid; gap: 2px; min-width: 0; }
+.switch-title { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16.5px; }
+.switch-title svg { width: 18px; height: 18px; color: var(--danger); }
+.switch-sub { font-size: 13.5px; color: var(--ink-2); }
+.kv-switch dt label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.kv-switch dt svg { width: 18px; height: 18px; color: var(--danger); }
+.note-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 52px;
+  padding: 0 4px 0 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+}
+.note-box:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px rgba(29, 99, 216, 0.18); }
+.note-box textarea { flex: 1 1 auto; min-width: 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 17px; line-height: 1.35; padding: 12px 0; resize: none; color: var(--ink); }
+.note-box textarea::placeholder { color: var(--ink-3); }
+.note-box .icon-btn { margin-top: 3px; }
+.dt-note .hint { margin: 6px 2px 0; font-size: 13.5px; color: var(--ink-3); }
+.dt-row-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+details.history { border-top: 1px solid var(--line-soft); padding-top: 12px; }
+details.history > summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; min-height: 40px; margin: 0; }
+details.history > summary::-webkit-details-marker { display: none; }
+details.history > summary svg { width: 20px; height: 20px; transition: transform 0.2s ease; }
+details.history[open] > summary svg { transform: rotate(180deg); }
+.hist { list-style: none; margin: 6px 0 0; padding: 0; }
+.hist li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
+.hist .dot { grid-row: 1 / 3; align-self: start; margin-top: 4px; }
+.hist-name { font-weight: 700; }
+.hist-when { font-size: 13.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hist-now { margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: var(--ink); color: var(--surface); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.dt-tools { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.danger-text { color: var(--danger); }
+
+/* ---------- Forms ---------- */
+.form { display: grid; gap: 16px; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field > label { font-size: 12.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.field input, .field textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 50px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  font-size: 17px;
+  line-height: 1.3;
+  text-align: left;
+}
+.field textarea { resize: vertical; min-height: 104px; }
+.field input:focus, .field textarea:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px rgba(29, 99, 216, 0.2); }
+.field input[aria-invalid="true"] { border-color: var(--danger); }
+.field .hint { margin: 0; font-size: 13.5px; color: var(--ink-3); }
+.err { margin: 0; color: var(--danger); font-size: 14px; font-weight: 600; }
+.dup { margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); color: var(--warn); font-size: 13.5px; font-weight: 600; }
+.form-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.eta-preview { margin: -4px 0 0; font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
+
+/* ---------- Pickers & lists ---------- */
+.picker-tools { display: grid; gap: 10px; margin-bottom: 12px; }
+.pick-list { list-style: none; margin: 0; padding: 0; border-radius: 16px; background: var(--surface-2); overflow: hidden; }
+.pick-list li + li { border-top: 1px solid var(--line-soft); }
+.pick-row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; min-height: 56px; padding: 8px 10px 8px 16px; text-align: left; }
+.pick-name { font-weight: 700; font-size: 16.5px; overflow-wrap: anywhere; }
+.pick-sub { display: block; font-weight: 500; font-size: 13px; color: var(--ink-3); }
+.pick-meta { font-size: 13px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pick-tag { margin-left: 8px; padding: 1px 7px; border-radius: 999px; background: var(--ar); color: var(--ar-ink); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; vertical-align: 2px; }
+.pick-row svg { width: 20px; height: 20px; color: var(--ink-3); }
+.pick-empty { padding: 18px 16px; color: var(--ink-2); }
+
+/* ---------- Settings ---------- */
+.set-list { display: grid; border-radius: 16px; background: var(--surface-2); overflow: hidden; }
+.set-list > * + * { border-top: 1px solid var(--line-soft); }
+.set-row { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 64px; padding: 10px 14px 10px 16px; text-align: left; }
+.set-row > svg { width: 22px; height: 22px; color: var(--ink-2); }
+.set-row:disabled { opacity: 0.5; }
+.set-main { display: grid; gap: 2px; min-width: 0; }
+.set-title { font-weight: 700; font-size: 16.5px; }
+.set-sub { font-size: 13.5px; color: var(--ink-2); }
+.set-head { margin: 24px 4px 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.set-gap { height: 30px; }
+.set-row.danger { color: var(--danger); }
+.set-row.danger > svg { color: var(--danger); }
+.set-foot { margin: 22px 4px 0; font-size: 13.5px; color: var(--ink-3); max-width: 60ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="app-head" id="head"></header>
+  <main class="board" id="main" tabindex="-1"></main>
+  <nav class="app-foot" id="foot" aria-label="Previous and next tab"></nav>
+  <button type="button" class="fab" id="fab" data-act="new-card" aria-label="New work order">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden>
+  <span class="toast-msg"></span>
+  <button type="button" class="toast-act" data-act="toast-undo" hidden>Undo</button>
+  <i class="toast-timer" aria-hidden="true"></i>
+</div>
+<noscript><p style="padding:16px">This app needs JavaScript turned on.</p></noscript>
+
+<script>window.WOC_BUILD = "pages";</script>
+<script>
+/* WOC Follow-Up Board: a follow-up tracker for work orders moving through the contractor lifecycle.
+   All data lives in this browser (localStorage). Manual backups export a JSON file. */
+(() => {
+  'use strict';
+
+  const BUILD = window.WOC_BUILD || 'pages';
+  const KEY = 'wocBoard.v1';
+  const PREFS_KEY = 'wocBoard.prefs';
+  const SEEDED_KEY = 'wocBoard.seeded';
+  const NOTES_SEEDED_KEY = 'wocBoard.sampleNotes';
+  const EMER_SEEDED_KEY = 'wocBoard.sampleEmergency';
+  const SAMPLE_EMERGENCY = new Set(['87931', '87512']);
+  const SAMPLE_NOTES = {
+    '88140': 'Front door glass cracked, taped for now',
+    '87990': 'Door closer broken, using side entrance',
+    '87931': 'Walk-in cooler down, product moved',
+    '87802': 'Lights out in aisles 4 through 6',
+    '87790': 'Parts on order, tech booked',
+    '87655': 'Tech onsite, checking the compressor',
+    '87512': 'Roof leak over stockroom, needs a quote',
+    '87390': 'Quote $1,840 sent to DM for approval',
+    '87201': 'Approved, return visit to install',
+    '87044': 'Water heater replaced, store confirmed',
+    '86870': 'Waiting on vendor invoice',
+    '86702': 'Invoice 4471 submitted to AP',
+    '86311': 'Paid in full',
+  };
+  const DAY = 864e5;
+  const LAST = 11;
+
+  // Tab 0 is the Overview; tabs 1-11 are the stages.
+  const STAGES = [
+    { short: 'Overview', full: 'Overview', color: '#008A4A', ink: '#FFFFFF' },
+    { short: 'Created', full: 'Created', color: '#5E7891', ink: '#FFFFFF' },
+    { short: 'Sent', full: 'Dispatch Sent', color: '#2F67D6', ink: '#FFFFFF' },
+    { short: 'Accepted', full: 'Contractor Accepted', color: '#0E819E', ink: '#FFFFFF' },
+    { short: 'Onsite', full: 'Onsite Contractor', color: '#6B47C9', ink: '#FFFFFF' },
+    { short: 'Quote', full: 'Return Needs Quote', color: '#E2711D', ink: '#1E1205' },
+    { short: 'Pending', full: 'Quote Needs Approval', color: '#E8B828', ink: '#231A00' },
+    { short: 'Approved', full: 'Approved Quote', color: '#86B22D', ink: '#14200A' },
+    { short: 'Repaired', full: 'Work Complete', color: '#8B5A33', ink: '#FFFFFF' },
+    { short: 'Invoice', full: 'Invoice Needed', color: '#D23B55', ink: '#FFFFFF' },
+    { short: 'Submitted', full: 'Submitted Invoice', color: '#A8459B', ink: '#FFFFFF' },
+    { short: 'Completed', full: 'Completed Invoice', color: '#C5CDC9', ink: '#121A16' },
+  ];
+  const hasEta = (s) => s >= 3 && s <= 7;      // ETA shows from S3 until the card moves into S8
+  const hasCon = (s) => s >= 2;                // contractor shows from S2 on
+  const stageName = (n) => `S${n} ${STAGES[n].full}`;
+  const tabName = (n) => (n === 0 ? 'Overview' : STAGES[n].short);
+  const scv = (n) => `--sc:${STAGES[n].color};--sc-ink:${STAGES[n].ink}`;
+
+  const FIELDS = [
+    { k: 'ref', label: 'Ref #', ph: 'Search Reference #', name: 'Reference #' },
+    { k: 'wo', label: 'WO #', ph: 'Search Work Order #', name: 'Work Order #' },
+    { k: 'store', label: 'Store', ph: 'Search store name', name: 'Store' },
+    { k: 'contractor', label: 'Contractor', ph: 'Search contractor name', name: 'Contractor' },
+  ];
+
+  // ---------- Icons ----------
+  const svg = (paths, sw) => `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="${sw || 2}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  const ICON = {
+    left: svg('<path d="M15 18l-6-6 6-6"/>', 2.4),
+    right: svg('<path d="M9 6l6 6-6 6"/>', 2.4),
+    down: svg('<path d="M6 9l6 6 6-6"/>', 2.4),
+    plus: svg('<path d="M12 5v14M5 12h14"/>', 2.6),
+    x: svg('<path d="M18 6L6 18M6 6l12 12"/>', 2.2),
+    check: svg('<path d="M20 6L9 17l-5-5"/>', 2.6),
+    search: svg('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'),
+    grid: svg('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>', 2.2),
+    gear: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
+    users: svg('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>'),
+    download: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>'),
+    upload: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>'),
+    archive: svg('<path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/>'),
+    trash: svg('<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'),
+    copy: svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+    edit: svg('<path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
+    alert: svg('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>', 2.4),
+  };
+
+  // ---------- Small helpers ----------
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const uid = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+  const pad = (n) => String(n).padStart(2, '0');
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const str = (v) => (v == null ? '' : String(v)).trim();
+  const num = (v, d) => (typeof v === 'number' && isFinite(v) ? v : typeof v === 'string' && v.trim() !== '' && isFinite(+v) ? +v : d);
+  const norm = (s) => String(s || '').trim().toLowerCase();
+
+  function dayStart(ms) { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); }
+  function daysBetween(a, b) { return Math.round((dayStart(b) - dayStart(a)) / DAY); }
+  function at8(ms) { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8).getTime(); }
+  function latest8am(now) {
+    const t = at8(now);
+    if (now >= t) return t;
+    const d = new Date(now);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, 8).getTime();
+  }
+  function next8am(now) {
+    const t = at8(now);
+    if (now < t) return t;
+    const d = new Date(now);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 8).getTime();
+  }
+  function fmtTime(ms) { const d = new Date(ms); const h = d.getHours(); return `${h % 12 || 12}:${pad(d.getMinutes())}${h < 12 ? 'am' : 'pm'}`; }
+  function fmtDate(ms) { const d = new Date(ms); return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()}`; }
+  const fmtDT = (ms) => `${fmtDate(ms)} ${fmtTime(ms)}`;
+  const fmtEta = (ms) => `ETA - ${fmtTime(ms)} ${fmtDate(ms)}`;
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmtToday = (ms) => { const d = new Date(ms); return `${DOW[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}`; };
+  function toInput(ms) { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+  function fromInput(v) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v || '');
+    if (!m) return null;
+    const t = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+    return isNaN(t) ? null : t;
+  }
+  function durText(ms) {
+    if (ms < 36e5) return plural(Math.max(1, Math.round(ms / 6e4)), 'min', 'min');
+    if (ms < DAY) return plural(Math.round(ms / 36e5), 'hr', 'hrs');
+    return plural(Math.floor(ms / DAY), 'day', 'days');
+  }
+  function stamp(ms) { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`; }
+
+  // ---------- Card metrics ----------
+  const ageDays = (c, now) => Math.max(0, daysBetween(c.origin, now));
+  const dsfDays = (c, now) => Math.max(0, daysBetween(c.dsfFrom, now));
+  const stageDays = (c, now) => Math.max(0, daysBetween(c.stageAt, now));
+  const ageLabel = (n) => `${n} ${n === 1 ? 'Day' : 'Days'} Old`;
+  const isOpen = (c) => c.stage < LAST;
+  const etaIsToday = (c, now) => c.eta != null && hasEta(c.stage) && dayStart(c.eta) === dayStart(now);
+  const etaGated = (c, now) => c.stage === 3 && c.eta != null && dayStart(now) < dayStart(c.eta);
+  const cardTitle = (c) => (c.wo ? `WO # ${c.wo}` : c.ref ? `Ref # ${c.ref}` : 'Work order');
+
+  function arLabel(c, now) {
+    if (c.stage === LAST) return 'Complete';
+    if (c.ar) return 'Action Required';
+    if (c.lastFU != null && dayStart(c.lastFU) === dayStart(now)) return 'Followed-up Today';
+    if (etaGated(c, now)) return 'Awaiting ETA';
+    if (c.lastFU != null && daysBetween(c.lastFU, now) === 1) return 'Followed-up Yesterday';
+    return 'Due at 8am';
+  }
+
+  // Cards that need action come first, in this order: 1. emergencies, 2. ETA is today, 3. most days since follow-up.
+  // Cards already followed up (grey) drop to the bottom, emergencies first among them.
+  // Completed cards list emergencies first, then newest first.
+  const emerRank = (c) => (c.emergency ? 0 : 1);
+  function sortCards(list, now, stage) {
+    if (stage === LAST) return list.slice().sort((a, b) => emerRank(a) - emerRank(b) || b.stageAt - a.stageAt);
+    const rows = list.map((c) => {
+      const open = c.ar && isOpen(c);
+      return {
+        c,
+        g: open ? 0 : 1,
+        em: emerRank(c),
+        et: open && etaIsToday(c, now) ? 0 : 1,
+        dsf: dsfDays(c, now),
+        age: ageDays(c, now),
+      };
+    });
+    rows.sort((a, b) => a.g - b.g || a.em - b.em || a.et - b.et || (a.et === 0 && b.et === 0 ? a.c.eta - b.c.eta : 0)
+      || b.dsf - a.dsf || b.age - a.age || a.c.createdAt - b.c.createdAt);
+    return rows.map((r) => r.c);
+  }
+
+  // ---------- Data ----------
+  const emptyDb = () => ({ v: 1, cards: [], contractors: [], lastEval: null, lastBackupAt: null });
+  let db = emptyDb();
+  let storageOK = true;
+  const cardById = (id) => db.cards.find((c) => c.id === id) || null;
+  const conById = (id) => (id ? db.contractors.find((c) => c.id === id) || null : null);
+
+  function normContractor(x) {
+    if (!x || typeof x !== 'object') return null;
+    const name = str(x.name);
+    if (!name) return null;
+    return { id: str(x.id) || uid(), name, email: str(x.email), phone: str(x.phone), notes: x.notes == null ? '' : String(x.notes).trim(), createdAt: num(x.createdAt, Date.now()), sample: !!x.sample };
+  }
+  function normCard(x, now) {
+    if (!x || typeof x !== 'object') return null;
+    const stage = Math.round(num(x.stage, 1));
+    if (!(stage >= 1 && stage <= LAST)) return null;
+    const createdAt = num(x.createdAt, now);
+    const stageAt = num(x.stageAt, createdAt);
+    let history = Array.isArray(x.history)
+      ? x.history.filter((h) => h && typeof h === 'object').map((h) => ({ stage: Math.round(num(h.stage, 0)), at: num(h.at, null) })).filter((h) => h.stage >= 1 && h.stage <= LAST && h.at != null)
+      : [];
+    if (!history.length) history = [{ stage, at: stageAt }];
+    return {
+      id: str(x.id) || uid(),
+      ref: str(x.ref),
+      wo: str(x.wo),
+      store: str(x.store),
+      origin: num(x.origin, createdAt),
+      createdAt,
+      stage,
+      stageAt,
+      history,
+      contractorId: x.contractorId ? str(x.contractorId) : null,
+      eta: num(x.eta, null),
+      ar: stage === LAST ? false : x.ar !== false,
+      lastFU: num(x.lastFU, null),
+      dsfFrom: num(x.dsfFrom, createdAt),
+      sample: !!x.sample,
+      note: str(x.note).slice(0, 200),
+      noteAt: num(x.noteAt, null),
+      noteStage: num(x.noteStage, null),
+      emergency: !!x.emergency,
+    };
+  }
+  function normalizeDb(raw) {
+    const now = Date.now();
+    const src = raw && raw.data && typeof raw.data === 'object' ? raw.data : raw;
+    const out = emptyDb();
+    if (!src || typeof src !== 'object') return out;
+    const seen = new Set();
+    out.contractors = (Array.isArray(src.contractors) ? src.contractors : []).map(normContractor).filter((c) => c && !seen.has(c.id) && seen.add(c.id));
+    seen.clear();
+    out.cards = (Array.isArray(src.cards) ? src.cards : []).map((c) => normCard(c, now)).filter((c) => c && !seen.has(c.id) && seen.add(c.id));
+    out.lastEval = num(src.lastEval, null);
+    out.lastBackupAt = num(src.lastBackupAt, null);
+    return out;
+  }
+  function hasStoredData() { try { return localStorage.getItem(KEY) != null; } catch (e) { return false; } }
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      storageOK = true;
+      return raw ? normalizeDb(JSON.parse(raw)) : emptyDb();
+    } catch (e) {
+      storageOK = false;
+      return emptyDb();
+    }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(db)); storageOK = true; } catch (e) { storageOK = false; }
+  }
+  function getFlag(k) { try { return localStorage.getItem(k) === '1'; } catch (e) { return false; } }
+  function setFlag(k) { try { localStorage.setItem(k, '1'); } catch (e) { /* ignore */ } }
+
+  // Every card goes back to Action Required at 8am each day, except:
+  //  - S3 cards wait until 8am on their ETA date
+  //  - S11 cards never need action
+  // Stage and ETA only change inside the app, and every change runs this first,
+  // so checking the most recent 8am against the last check is enough.
+  function evaluateAR(now) {
+    if (db.lastEval == null || now < db.lastEval) { db.lastEval = now; return true; }
+    const L = latest8am(now);
+    let changed = false;
+    if (L > db.lastEval) {
+      const Lday = dayStart(L);
+      for (const c of db.cards) {
+        if (c.ar || c.stage === LAST) continue;
+        if (c.stage === 3 && c.eta != null && Lday < dayStart(c.eta)) continue;
+        c.ar = true;
+        changed = true;
+      }
+    }
+    db.lastEval = now;
+    return changed;
+  }
+  function commit() { evaluateAR(Date.now()); save(); render(); }
+
+  // ---------- UI state ----------
+  const ui = { tab: 0, field: 'ref', query: '', expanded: null, scroll: {}, detail: null };
+  function loadPrefs() { try { const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); if (FIELDS.some((f) => f.k === p.field)) ui.field = p.field; } catch (e) { /* ignore */ } }
+  function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ field: ui.field })); } catch (e) { /* ignore */ } }
+
+  const $app = document.getElementById('app');
+  const $head = document.getElementById('head');
+  const $main = document.getElementById('main');
+  const $foot = document.getElementById('foot');
+  const $toast = document.getElementById('toast');
+  let lastRenderDay = 0;
+
+  function stageCounts() {
+    const total = Array(12).fill(0);
+    const due = Array(12).fill(0);
+    for (const c of db.cards) { total[c.stage]++; if (c.ar && isOpen(c)) due[c.stage]++; }
+    total[0] = db.cards.length - total[LAST];
+    due[0] = due.reduce((a, b) => a + b, 0);
+    return { total, due };
+  }
+
+  // ---------- Rendering ----------
+  function render(opts) {
+    const now = Date.now();
+    lastRenderDay = dayStart(now);
+    const counts = stageCounts();
+    renderHead(now, counts);
+    if (ui.tab === 0) renderOverview(now, counts); else renderStage(now);
+    renderFoot();
+    for (const s of sheetStack) if (s.opts.live && !(opts && opts.skip === s)) s.refresh();
+  }
+
+  function renderHead(now, counts) {
+    const t = ui.tab;
+    const meta = t === 0
+      ? `<span class="hm-date">${esc(fmtToday(now))}</span>`
+      : `<span class="hm-num" aria-label="${plural(counts.total[t], 'card', 'cards')}">${counts.total[t]}</span>${counts.due[t] ? `<span class="hm-due">${counts.due[t]} due</span>` : ''}`;
+    const rail = STAGES.map((s, i) => {
+      const label = i === 0 ? `Overview, ${counts.due[0]} need follow-up` : `${stageName(i)}, ${plural(counts.total[i], 'card', 'cards')}${counts.due[i] ? `, ${counts.due[i]} due` : ''}`;
+      return `<button type="button" class="rail-seg${i === t ? ' on' : ''}${counts.due[i] ? ' due' : ''}" style="${scv(i)}" data-act="tab" data-tab="${i}" aria-label="${esc(label)}"${i === t ? ' aria-current="page"' : ''}><i></i></button>`;
+    }).join('');
+    $head.innerHTML = `
+      <div class="head-row">
+        <button type="button" class="head-title" data-act="menu" aria-haspopup="dialog" aria-label="${esc(t === 0 ? 'Overview' : stageName(t))}. Choose a tab">
+          <span class="chip" style="${scv(t)}">${t === 0 ? ICON.grid : 'S' + t}</span>
+          <span class="head-name">${esc(tabName(t))}</span>${ICON.down}
+        </button>
+        <div class="head-meta">${meta}</div>
+      </div>
+      <nav class="rail" aria-label="All tabs">${rail}</nav>
+      <div class="head-strip" style="${scv(t)}"></div>`;
+  }
+
+  function renderFoot() {
+    const t = ui.tab;
+    const prev = t > 0 ? t - 1 : null;
+    const next = t < LAST ? t + 1 : null;
+    $foot.innerHTML = `
+      <button type="button" class="foot-btn prev" data-act="prev" ${prev == null ? 'disabled aria-label="No previous tab"' : `aria-label="Previous tab: ${esc(prev === 0 ? 'Overview' : stageName(prev))}"`}>${ICON.left}${prev == null ? '' : `<span>${esc(tabName(prev))}</span>`}</button>
+      <div class="foot-pos">${t === 0 ? 'Overview' : `S${t} of 11`}</div>
+      <button type="button" class="foot-btn next" data-act="next" ${next == null ? 'disabled aria-label="No next tab"' : `aria-label="Next tab: ${esc(stageName(next))}"`}>${next == null ? '' : `<span>${esc(tabName(next))}</span>`}${ICON.right}</button>`;
+  }
+
+  function cardHTML(c, now, opts) {
+    opts = opts || {};
+    const s = STAGES[c.stage];
+    const con = hasCon(c.stage) ? conById(c.contractorId) : null;
+    const showEta = hasEta(c.stage) && c.eta != null;
+    const state = c.stage === LAST ? 'complete' : c.ar ? 'ar' : 'done';
+    const label = arLabel(c, now);
+    const age = ageDays(c, now);
+    const dsf = dsfDays(c, now);
+    const foot = hasCon(c.stage) || showEta
+      ? `<div class="woc-foot">${hasCon(c.stage) ? (con ? `<div class="woc-con">${esc(con.name)}</div>` : '<div class="woc-con none">No contractor</div>') : ''}${showEta ? `<div class="woc-eta"><span>${esc(fmtEta(c.eta))}</span>${etaIsToday(c, now) ? '<span class="eta-today">Today</span>' : ''}</div>` : ''}</div>`
+      : '';
+    const aria = `${c.emergency ? 'Emergency. ' : ''}${cardTitle(c)}, ${c.store}, ${stageName(c.stage)}, ${label}${c.note ? `. Note: ${c.note}` : ''}`;
+    const emer = c.emergency ? ' emer' : '';
+    const attrs = opts.static
+      ? `class="woc static ${state}${emer}" style="${scv(c.stage)}"`
+      : `class="woc ${state}${emer}" style="${scv(c.stage)}" role="button" tabindex="0" data-act="open-card" data-id="${esc(c.id)}" aria-label="${esc(aria)}"`;
+    const tags = c.emergency || c.sample
+      ? `<span class="woc-tags">${c.emergency ? `<span class="woc-emer">${ICON.alert}Emergency</span>` : ''}${c.sample ? '<span class="woc-sample">Sample</span>' : ''}</span>`
+      : '';
+    return `<article ${attrs}>
+      <div class="woc-band"><span class="woc-stage">S${c.stage} · ${esc(opts.full ? s.full : s.short)}</span>${tags}</div>
+      <div class="woc-face">
+        <div class="woc-top"><span class="woc-age">${ageLabel(age)}</span><span class="woc-status">${esc(label)}</span></div>
+        <dl class="woc-ids"><div><dt>Ref #</dt><dd>${esc(c.ref) || '—'}</dd></div><div><dt>WO #</dt><dd>${esc(c.wo) || '—'}</dd></div></dl>
+        <h3 class="woc-store">${esc(c.store)}</h3>
+        ${c.note ? `<p class="woc-note"><span>${esc(c.note)}</span></p>` : ''}
+        <div class="woc-dsf">Days Since Follow-Up: ${dsf}</div>
+        ${foot}
+      </div>
+    </article>`;
+  }
+  const listHTML = (cards, now, emptyText) => (cards.length ? `<div class="cards ov-list">${cards.map((c) => cardHTML(c, now)).join('')}</div>` : `<p class="empty-note">${emptyText}</p>`);
+
+  // ----- Overview -----
+  function renderOverview(now, counts) {
+    let root = $main.querySelector('.overview');
+    if (!root) {
+      const f = FIELDS.find((x) => x.k === ui.field);
+      $main.innerHTML = `<section class="overview">
+        <div class="ov-search">
+          <div class="seg" role="radiogroup" aria-label="Search by" data-noswipe>${FIELDS.map((x) => `<button type="button" role="radio" class="seg-btn" data-act="field" data-field="${x.k}" aria-checked="${x.k === ui.field}">${esc(x.label)}</button>`).join('')}</div>
+          <label class="search-box"><span class="sr-only">Search work orders</span>${ICON.search}<input id="ov-q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="${esc(f.ph)}" value="${esc(ui.query)}"><button type="button" class="icon-btn" data-act="clear-search" aria-label="Clear search"${ui.query ? '' : ' hidden'}>${ICON.x}</button></label>
+        </div>
+        <div id="ov-results" hidden></div>
+        <div id="ov-body"></div>
+      </section>`;
+      root = $main.querySelector('.overview');
+      const q = root.querySelector('#ov-q');
+      q.addEventListener('input', () => { ui.query = q.value; updateSearch(Date.now()); });
+      q.addEventListener('keydown', (e) => { if (e.key === 'Enter') q.blur(); });
+    }
+    root.querySelector('#ov-body').innerHTML = overviewBodyHTML(now, counts);
+    updateSearch(now);
+  }
+
+  function searchCards(q, field) {
+    const hit = (v) => norm(v).includes(q);
+    const res = db.cards.filter((c) => {
+      if (field === 'ref') return hit(c.ref);
+      if (field === 'wo') return hit(c.wo);
+      if (field === 'store') return hit(c.store);
+      const con = hasCon(c.stage) ? conById(c.contractorId) : null;
+      return !!con && hit(con.name);
+    });
+    const now = Date.now();
+    const out = [];
+    for (let s = 1; s <= LAST; s++) out.push(...sortCards(res.filter((c) => c.stage === s), now, s));
+    return out;
+  }
+
+  function updateSearch(now) {
+    const root = $main.querySelector('.overview');
+    if (!root) return;
+    const res = root.querySelector('#ov-results');
+    const body = root.querySelector('#ov-body');
+    root.querySelector('[data-act="clear-search"]').hidden = !ui.query;
+    const q = norm(ui.query);
+    if (!q) { res.hidden = true; res.innerHTML = ''; body.hidden = false; return; }
+    const f = FIELDS.find((x) => x.k === ui.field);
+    const matches = searchCards(q, ui.field);
+    res.hidden = false;
+    body.hidden = true;
+    res.innerHTML = `<div class="ov-res-head"><h2>${plural(matches.length, 'match', 'matches')}</h2><span>${esc(f.name)} contains “${esc(ui.query.trim())}”</span></div>`
+      + (matches.length ? `<div class="cards">${matches.map((c) => cardHTML(c, now)).join('')}</div>` : '<p class="empty-note">No work orders match. Try another field or fewer characters.</p>');
+  }
+
+  function lastBackupText(now) {
+    if (db.lastBackupAt == null) return 'Never';
+    const d = daysBetween(db.lastBackupAt, now);
+    if (d <= 0) return `Today at ${fmtTime(db.lastBackupAt)}`;
+    if (d === 1) return 'Yesterday';
+    return `${d} days ago`;
+  }
+
+  function overviewBodyHTML(now, counts) {
+    const open = db.cards.filter(isOpen);
+    const arList = sortCards(open.filter((c) => c.ar), now, 0);
+    const dsfList = sortCards(open.filter((c) => dsfDays(c, now) > 1), now, 0);
+    const etaList = db.cards.filter((c) => etaIsToday(c, now)).sort((a, b) => emerRank(a) - emerRank(b) || a.eta - b.eta);
+    const oldest = open.reduce((m, c) => (!m || c.origin < m.origin ? c : m), null);
+    const parts = [];
+
+    if (!storageOK) parts.push('<div class="banner alert"><p>This browser is blocking storage, so changes won’t be saved. Open the app in a regular (not private) window.</p></div>');
+    if (db.cards.some((c) => c.sample)) parts.push('<div class="banner"><p>Sample work orders are loaded so you can try things out.</p><button type="button" class="btn btn-ghost" data-act="clear-samples">Clear samples</button></div>');
+    if (!db.cards.length) {
+      parts.push(`<div class="welcome"><h2>Your board is empty</h2><p>Tap the + button to add your first work order. It starts in S1 Created and shows green until you follow up.</p><button type="button" class="btn btn-ghost" data-act="load-samples">Try it with sample work orders</button></div>`);
+    }
+
+    const n = arList.length;
+    const fuOpen = ui.expanded === 'followup' && n > 0;
+    parts.push(`<button type="button" class="fu-btn${n ? '' : ' zero'}" data-act="toggle-list" data-list="followup" aria-expanded="${fuOpen}"${n ? '' : ' disabled'}>
+        <span class="fu-num">${n}</span><span class="fu-txt">${n === 1 ? 'Requires' : 'Require'} Follow-Up</span>
+        <span class="fu-hint">${n ? (fuOpen ? 'Tap to hide the list' : 'Tap to see them, most urgent first') : 'All caught up for now'}</span>${n ? ICON.down : ''}
+      </button>`);
+    if (fuOpen) parts.push(listHTML(arList, now, ''));
+
+    const dsfOpen = ui.expanded === 'dsf';
+    const etaOpen = ui.expanded === 'eta';
+    parts.push(`<div class="tiles">
+        <button type="button" class="tile${dsfList.length ? ' warn' : ''}" data-act="toggle-list" data-list="dsf" aria-expanded="${dsfOpen}"><span class="tile-num">${dsfList.length}</span><span class="tile-lbl">DSF over 1</span><span class="tile-sub">No follow-up in 2+ days</span></button>
+        <button type="button" class="tile${etaList.length ? ' good' : ''}" data-act="toggle-list" data-list="eta" aria-expanded="${etaOpen}"><span class="tile-num">${etaList.length}</span><span class="tile-lbl">ETAs Today</span><span class="tile-sub">${etaList.length ? 'Contractors due today' : 'None scheduled today'}</span></button>
+      </div>`);
+    if (dsfOpen) parts.push(listHTML(dsfList, now, 'Every open work order has had a follow-up in the last day.'));
+    if (etaOpen) parts.push(listHTML(etaList, now, 'No contractor ETAs fall on today.'));
+
+    if (oldest) {
+      parts.push(`<button type="button" class="oldest" data-act="open-card" data-id="${esc(oldest.id)}" aria-label="Oldest open work order: ${esc(cardTitle(oldest))}, ${ageLabel(ageDays(oldest, now))}">
+          <span class="oldest-lbl">Oldest Open WOC</span>
+          <span class="oldest-age">${ageLabel(ageDays(oldest, now))}</span>
+          <span class="chip" style="${scv(oldest.stage)}">S${oldest.stage}</span>
+          <span class="oldest-who">${esc(cardTitle(oldest))} · ${esc(oldest.store)} · ${esc(STAGES[oldest.stage].full)}</span>
+        </button>`);
+    }
+
+    const max = Math.max(1, ...counts.total.slice(1));
+    parts.push('<h2 class="section-title">Work orders by stage</h2>');
+    parts.push(`<ol class="by-stage">${STAGES.slice(1).map((s, k) => {
+      const i = k + 1;
+      const tot = counts.total[i];
+      return `<li><button type="button" class="bs-row" data-act="tab" data-tab="${i}" style="${scv(i)}" aria-label="${esc(`${stageName(i)}: ${plural(tot, 'work order', 'work orders')}${counts.due[i] ? `, ${counts.due[i]} due` : ''}`)}">
+          <span class="chip">S${i}</span>
+          <span class="bs-names"><span class="bs-short">${esc(s.short)}${s.full !== s.short ? ` <span class="bs-full">${esc(s.full)}</span>` : ''}</span><span class="bs-bar${tot ? '' : ' zero'}" style="width:${Math.round((tot / max) * 100)}%"></span></span>
+          <span class="bs-nums"><span class="bs-count">${tot}</span>${counts.due[i] ? `<span class="bs-due">${counts.due[i]} due</span>` : ''}</span>
+        </button></li>`;
+    }).join('')}</ol>`);
+    parts.push(`<p class="by-stage-total">${plural(counts.total[0], 'open work order', 'open work orders')} · ${counts.total[LAST]} completed</p>`);
+
+    const stale = db.cards.length > 0 && (db.lastBackupAt == null || daysBetween(db.lastBackupAt, now) >= 7);
+    parts.push(`<div class="ov-foot"><button type="button" class="settings-btn" data-act="settings">${ICON.gear}<span>Settings</span></button><p class="backup-note${stale ? ' stale' : ''}">Last backup: ${esc(lastBackupText(now))}</p></div>`);
+    return parts.join('');
+  }
+
+  // ----- Stage tabs -----
+  function emptyStageHTML(t) {
+    if (t === 1) return '<div class="empty"><strong>No new work orders</strong><p>Tap the + button to add one. New cards always start here.</p></div>';
+    if (t === LAST) return '<div class="empty"><strong>No completed invoices</strong><p>Work orders land here when an invoice is completed. Clear them out at month end with EOM Completion Wipe in Settings.</p></div>';
+    return `<div class="empty"><strong>Nothing in ${esc(STAGES[t].short)} right now</strong><p>Cards arrive here when you press Next Stage on a work order in ${esc(stageName(t - 1))}.</p></div>`;
+  }
+  function renderStage(now) {
+    const t = ui.tab;
+    const cards = sortCards(db.cards.filter((c) => c.stage === t), now, t);
+    const due = cards.filter((c) => c.ar && isOpen(c)).length;
+    const sub = t === LAST
+      ? `${plural(cards.length, 'work order', 'work orders')} · newest first`
+      : `${plural(cards.length, 'work order', 'work orders')} · ${due} need${due === 1 ? 's' : ''} follow-up`;
+    $main.innerHTML = `<section class="stage-view">
+        <div class="stage-intro"><h1 class="stage-title"><span class="num">S${t}</span>${esc(STAGES[t].full)}</h1><p class="stage-sub">${sub}</p></div>
+        ${cards.length ? `<div class="cards">${cards.map((c) => cardHTML(c, now)).join('')}</div>` : emptyStageHTML(t)}
+      </section>`;
+  }
+
+  function goTab(t) {
+    t = Math.max(0, Math.min(LAST, t));
+    if (t === ui.tab) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    ui.scroll[ui.tab] = window.scrollY;
+    const dir = t > ui.tab ? 'enter-r' : 'enter-l';
+    ui.tab = t;
+    $main.innerHTML = '';
+    render();
+    window.scrollTo(0, ui.scroll[t] || 0);
+    $main.classList.remove('enter-r', 'enter-l');
+    void $main.offsetWidth;
+    $main.classList.add(dir);
+  }
+
+  // ---------- Sheets (detail view, forms, pickers, dialogs) ----------
+  // Each open sheet adds one browser-history entry while any sheet is open, so the
+  // phone's Back gesture closes the top sheet instead of leaving the app.
+  const sheetStack = [];
+  let armed = false;
+  let pendingBack = 0;
+  function arm() { try { history.pushState({ woc: 1 }, ''); armed = true; } catch (e) { armed = false; } }
+
+  function openSheet(opts) {
+    const kind = opts.kind || 'page';
+    const tid = 'sh-' + Math.random().toString(36).slice(2, 9);
+    const wrap = document.createElement('div');
+    wrap.className = `sheet-wrap kind-${kind} ${opts.cls || ''}`;
+    wrap.innerHTML = `<div class="sheet-scrim" data-sact="close"></div>
+      <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="${tid}" tabindex="-1">
+        <header class="sheet-head">${kind === 'dialog' ? '' : `<button type="button" class="icon-btn" data-sact="close" aria-label="Close">${ICON.x}</button>`}<h2 class="sheet-title" id="${tid}"></h2><div class="sheet-head-x"></div></header>
+        <div class="sheet-body"></div>
+      </section>`;
+    const sheet = {
+      el: wrap,
+      opts,
+      data: opts.data || {},
+      body: wrap.querySelector('.sheet-body'),
+      closed: false,
+      returnFocus: document.activeElement,
+    };
+    sheet.refresh = () => {
+      if (sheet.closed) return;
+      const t = typeof opts.title === 'function' ? opts.title(sheet) : opts.title || '';
+      wrap.querySelector('.sheet-title').textContent = t;
+      wrap.querySelector('.sheet-head-x').innerHTML = opts.head ? opts.head(sheet) : '';
+      if (opts.beforeRender) opts.beforeRender(sheet);
+      if (opts.render) {
+        const top = sheet.body.scrollTop;
+        sheet.body.innerHTML = opts.render(sheet);
+        sheet.body.scrollTop = top;
+      }
+      if (opts.afterRender) opts.afterRender(sheet);
+    };
+    wrap.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-sact]');
+      if (!a || !wrap.contains(a) || a.disabled) return;
+      const name = a.dataset.sact;
+      if (name === 'close') { e.preventDefault(); closeSheet(sheet); return; }
+      const fn = opts.acts && opts.acts[name];
+      if (fn) { e.preventDefault(); fn(a, sheet, e); }
+    });
+    wrap.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (opts.onSubmit) opts.onSubmit(e.target, sheet, e);
+    });
+    sheetStack.push(sheet);
+    document.body.appendChild(wrap);
+    sheet.refresh();
+    if (opts.onMount) opts.onMount(sheet);
+    if (!armed) arm();
+    updateInert();
+    requestAnimationFrame(() => {
+      wrap.classList.add('open');
+      const f = opts.focus ? wrap.querySelector(opts.focus) : null;
+      try { (f || wrap.querySelector('.sheet')).focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    });
+    return sheet;
+  }
+
+  function closeSheet(sheet, fromPop) {
+    if (!sheet || sheet.closed) return;
+    sheet.closed = true;
+    const i = sheetStack.indexOf(sheet);
+    if (i >= 0) sheetStack.splice(i, 1);
+    sheet.el.classList.remove('open');
+    setTimeout(() => sheet.el.remove(), 240);
+    try { if (sheet.opts.onClose) sheet.opts.onClose(sheet); } catch (e) { console.error(e); }
+    updateInert();
+    if (!sheetStack.length && armed && !fromPop) {
+      armed = false;
+      pendingBack++;
+      try { history.back(); } catch (e) { pendingBack--; }
+    }
+    const rf = sheet.returnFocus;
+    if (rf && document.contains(rf) && typeof rf.focus === 'function') { try { rf.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+  }
+
+  window.addEventListener('popstate', (e) => {
+    const onOurs = !!(e.state && e.state.woc);
+    if (pendingBack > 0) {
+      pendingBack--;
+      armed = onOurs;
+      if (sheetStack.length && !armed) arm();
+      return;
+    }
+    armed = onOurs;
+    if (sheetStack.length) {
+      closeSheet(sheetStack[sheetStack.length - 1], true);
+      if (sheetStack.length && !armed) arm();
+    }
+  });
+
+  function updateInert() {
+    const top = sheetStack[sheetStack.length - 1];
+    $app.inert = sheetStack.length > 0;
+    for (const s of sheetStack) s.el.inert = s !== top;
+    document.body.classList.toggle('locked', sheetStack.length > 0);
+  }
+
+  function confirmDialog({ title, message, confirm, cancel, danger }) {
+    return new Promise((resolve) => {
+      let answered = false;
+      openSheet({
+        kind: 'dialog',
+        cls: 'confirm',
+        title,
+        focus: '[data-sact="no"]',
+        render: () => `<div class="confirm-msg">${message}</div>
+          <div class="form-actions"><button type="button" class="btn btn-quiet" data-sact="no">${esc(cancel || 'Cancel')}</button><button type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-sact="yes">${esc(confirm || 'Confirm')}</button></div>`,
+        acts: {
+          yes: (el, sh) => { answered = true; closeSheet(sh); resolve(true); },
+          no: (el, sh) => closeSheet(sh),
+        },
+        onClose: () => { if (!answered) resolve(false); },
+      });
+    });
+  }
+
+  // ---------- Toast with Undo ----------
+  let toastTimer = null;
+  let toastUndo = null;
+  function showToast(msg, undo) {
+    $toast.querySelector('.toast-msg').textContent = msg;
+    const btn = $toast.querySelector('.toast-act');
+    btn.hidden = !undo;
+    toastUndo = undo || null;
+    $toast.hidden = false;
+    $toast.classList.remove('show', 'timed');
+    void $toast.offsetWidth;
+    $toast.classList.add('show');
+    if (undo) $toast.classList.add('timed');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, undo ? 5000 : 2800);
+  }
+  function hideToast() {
+    clearTimeout(toastTimer);
+    toastUndo = null;
+    $toast.classList.remove('show', 'timed');
+    setTimeout(() => { if (!$toast.classList.contains('show')) $toast.hidden = true; }, 220);
+  }
+
+  // ---------- Actions on cards ----------
+  function doFollowUp(id) {
+    const now = Date.now();
+    evaluateAR(now);
+    const c = cardById(id);
+    if (!c || !c.ar || c.stage === LAST) { save(); render(); return; }
+    const before = { ar: c.ar, lastFU: c.lastFU, dsfFrom: c.dsfFrom };
+    c.ar = false;
+    c.lastFU = now;
+    c.dsfFrom = now;
+    save();
+    render();
+    showToast('Marked as followed up', () => {
+      const x = cardById(id);
+      if (!x) return;
+      Object.assign(x, before);
+      commit();
+      showToast('Follow-up undone');
+    });
+  }
+
+  function setEmergency(id, on) {
+    evaluateAR(Date.now());
+    const c = cardById(id);
+    if (!c || !!c.emergency === on) return;
+    c.emergency = on;
+    save();
+    render();
+    showToast(on ? 'Marked as emergency' : 'Emergency turned off');
+  }
+
+  function markNeeded(id) {
+    evaluateAR(Date.now());
+    const c = cardById(id);
+    if (!c || c.ar || c.stage === LAST) return;
+    c.ar = true;
+    save();
+    render();
+    showToast('Marked as follow-up needed');
+  }
+
+  function doMove(id, to, extra) {
+    extra = extra || {};
+    const now = Date.now();
+    evaluateAR(now);
+    const c = cardById(id);
+    if (!c || to < 1 || to > LAST || to === c.stage) return;
+    const before = { stage: c.stage, stageAt: c.stageAt, history: c.history.slice(), contractorId: c.contractorId, eta: c.eta, ar: c.ar };
+    c.stage = to;
+    c.stageAt = now;
+    c.history = c.history.concat([{ stage: to, at: now }]);
+    if ('contractorId' in extra) c.contractorId = extra.contractorId;
+    if ('eta' in extra) c.eta = extra.eta;
+    if (to >= 8) c.eta = null;
+    if (to === LAST) c.ar = false;
+    save();
+    render();
+    showToast(`Moved to ${stageName(to)}`, () => {
+      const x = cardById(id);
+      if (!x) return;
+      Object.assign(x, before);
+      commit();
+      showToast(`Moved back to ${stageName(before.stage)}`);
+    });
+  }
+
+  function requestMove(id, dir) {
+    const c = cardById(id);
+    if (!c) return;
+    const to = c.stage + dir;
+    if (to < 1 || to > LAST) return;
+    const who = esc(cardTitle(c));
+    if (to === 2 && (c.stage === 1 || c.stage === 3)) {
+      openContractorPicker({
+        currentId: c.contractorId,
+        title: c.stage === 1 ? 'Assign Contractor' : 'Choose Contractor',
+        note: `Moving ${who} to <b>S2 Dispatch Sent</b>. Pick the contractor who has it.`,
+        onPick: (cid) => doMove(id, 2, { contractorId: cid }),
+      });
+      return;
+    }
+    if (to === 3) {
+      openEtaSheet({
+        value: c.eta,
+        title: 'Contractor ETA',
+        confirm: 'Move to S3',
+        note: `Moving ${who} to <b>S3 Contractor Accepted</b>. Once you follow up, it won’t need follow-up again until 8am on the ETA date.`,
+        onSave: (eta) => doMove(id, 3, { eta }),
+      });
+      return;
+    }
+    doMove(id, to);
+  }
+
+  function setEta(id, eta) {
+    evaluateAR(Date.now());
+    const c = cardById(id);
+    if (!c) return;
+    c.eta = eta;
+    save();
+    render();
+    showToast(eta ? 'ETA updated' : 'ETA removed');
+  }
+
+  function setContractor(id, cid) {
+    evaluateAR(Date.now());
+    const c = cardById(id);
+    if (!c) return;
+    c.contractorId = cid;
+    save();
+    render();
+    const con = conById(cid);
+    showToast(con ? `Contractor set to ${con.name}` : 'Contractor updated');
+  }
+
+  async function deleteCard(id, sheet) {
+    const c = cardById(id);
+    if (!c) return;
+    const ok = await confirmDialog({
+      title: 'Delete this work order?',
+      message: `<p><b>${esc(cardTitle(c))}</b> · ${esc(c.store)} will be removed from every list.</p>`,
+      confirm: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    const idx = db.cards.indexOf(c);
+    if (idx < 0) return;
+    db.cards.splice(idx, 1);
+    if (sheet) closeSheet(sheet);
+    commit();
+    showToast('Work order deleted', () => {
+      if (!cardById(c.id)) db.cards.splice(Math.min(idx, db.cards.length), 0, c);
+      commit();
+      showToast('Work order restored');
+    });
+  }
+
+  function copyText(text) {
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove();
+      showToast(ok ? 'Copied' : 'Couldn’t copy. Press and hold the text to copy it.');
+    };
+    try { navigator.clipboard.writeText(text).then(() => showToast('Copied'), fallback); } catch (e) { fallback(); }
+  }
+
+  // ---------- Detail view ----------
+  function openDetail(id) {
+    if (!cardById(id)) return;
+    if (ui.detail) closeSheet(ui.detail);
+    ui.detail = openSheet({
+      kind: 'page',
+      cls: 'detail',
+      data: { id, historyOpen: false },
+      live: true,
+      title: (sh) => { const c = cardById(sh.data.id); return c ? cardTitle(c) : 'Work order'; },
+      head: (sh) => { const c = cardById(sh.data.id); return c ? `<span class="chip" style="${scv(c.stage)}">S${c.stage}</span>` : ''; },
+      render: detailHTML,
+      beforeRender: (sh) => {
+        // Keep a half-typed note (and the cursor) if the view refreshes while you type.
+        const inp = sh.body.querySelector('#note-in');
+        if (inp) {
+          sh.data.noteDraft = inp.value;
+          sh.data.noteFocus = document.activeElement === inp ? [inp.selectionStart, inp.selectionEnd] : null;
+        }
+      },
+      afterRender: (sh) => {
+        const d = sh.body.querySelector('details.history');
+        if (d) { d.open = !!sh.data.historyOpen; d.addEventListener('toggle', () => { sh.data.historyOpen = d.open; }); }
+        bindNoteEditor(sh);
+        const em = sh.body.querySelector('#dt-emer');
+        if (em) em.addEventListener('change', () => setEmergency(sh.data.id, em.checked));
+      },
+      acts: {
+        'clear-note': (el, sh) => {
+          const inp = sh.body.querySelector('#note-in');
+          if (!inp) return;
+          inp.value = '';
+          inp.dispatchEvent(new Event('input'));
+          commitNote(sh);
+        },
+        followup: (el, sh) => doFollowUp(sh.data.id),
+        remark: async (el, sh) => {
+          const c = cardById(sh.data.id);
+          if (!c || c.ar || c.stage === LAST) return;
+          const ok = await confirmDialog({
+            title: 'Mark as Follow‑Up Needed?',
+            message: `<p><b>${esc(cardTitle(c))}</b> turns green again and moves back up its list. Days Since Follow-Up stays the same until you tap Followed Up again.</p>`,
+            confirm: 'Confirm',
+            cancel: 'Cancel',
+          });
+          if (ok) markNeeded(sh.data.id);
+        },
+        next: (el, sh) => requestMove(sh.data.id, 1),
+        prev: (el, sh) => requestMove(sh.data.id, -1),
+        'edit-eta': (el, sh) => {
+          const c = cardById(sh.data.id);
+          if (!c) return;
+          openEtaSheet({ value: c.eta, title: 'Edit ETA', confirm: 'Save ETA', allowClear: c.stage !== 3 && c.eta != null, onSave: (eta) => setEta(c.id, eta) });
+        },
+        'change-con': (el, sh) => {
+          const c = cardById(sh.data.id);
+          if (!c) return;
+          openContractorPicker({ currentId: c.contractorId, title: 'Change Contractor', note: `Pick the contractor for ${esc(cardTitle(c))}.`, onPick: (cid) => setContractor(c.id, cid) });
+        },
+        copy: (el) => copyText(el.dataset.copy),
+        'edit-info': (el, sh) => { const c = cardById(sh.data.id); if (c) openCardForm({ card: c }); },
+        delete: (el, sh) => deleteCard(sh.data.id, sh),
+      },
+      onClose: (sh) => { commitNote(sh); if (ui.detail === sh) ui.detail = null; },
+    });
+  }
+
+  // ---------- Notes ----------
+  const NOTE_HINT = 'Shows under the store name on the card. About 50 characters fits on one line.';
+  function noteHint(c) {
+    return c && c.note && c.noteAt != null ? `Updated ${fmtDT(c.noteAt)}${c.noteStage ? ` in S${c.noteStage}` : ''}` : NOTE_HINT;
+  }
+  function bindNoteEditor(sh) {
+    const inp = sh.body.querySelector('#note-in');
+    if (!inp) return;
+    const clr = sh.body.querySelector('[data-sact="clear-note"]');
+    const hint = sh.body.querySelector('#note-hint');
+    inp.addEventListener('input', () => {
+      const c = cardById(sh.data.id);
+      if (!c) return;
+      const v = inp.value.trim();
+      const card = sh.body.querySelector('.woc.static');
+      if (card) card.outerHTML = cardHTML(Object.assign({}, c, { note: v }), Date.now(), { static: true, full: true });
+      clr.hidden = !inp.value;
+      hint.textContent = v.length > 50 ? 'Over 50 characters, so it wraps to a second line on the card.' : v === (c.note || '') ? noteHint(c) : 'Saves when you tap Done or tap away.';
+    });
+    inp.addEventListener('blur', () => commitNote(sh));
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+    if (sh.data.noteFocus) {
+      const [a, b] = sh.data.noteFocus;
+      sh.data.noteFocus = null;
+      try { inp.focus({ preventScroll: true }); inp.setSelectionRange(a, b); } catch (e) { /* ignore */ }
+    }
+  }
+  function commitNote(sh) {
+    const inp = sh && sh.body.querySelector('#note-in');
+    if (!inp) return;
+    const c = cardById(sh.data.id);
+    if (!c) return;
+    const v = inp.value.trim().replace(/\s+/g, ' ');
+    if (v === (c.note || '')) {
+      const h = sh.body.querySelector('#note-hint');
+      if (h) h.textContent = noteHint(c);
+      return;
+    }
+    evaluateAR(Date.now());
+    c.note = v;
+    c.noteAt = v ? Date.now() : null;
+    c.noteStage = v ? c.stage : null;
+    sh.data.noteDraft = v;
+    if (document.activeElement !== inp) inp.value = v;
+    save();
+    render({ skip: sh });
+    const hint = sh.body.querySelector('#note-hint');
+    if (hint) hint.textContent = noteHint(c);
+    showToast(v ? 'Note saved' : 'Note cleared');
+  }
+
+  function detailHTML(sh) {
+    const c = cardById(sh.data.id);
+    if (!c) return '<p class="empty-note">This work order is no longer on the board.</p>';
+    const now = Date.now();
+    const s = STAGES[c.stage];
+    const con = hasCon(c.stage) ? conById(c.contractorId) : null;
+    const nxt = c.stage < LAST ? c.stage + 1 : null;
+    const prv = c.stage > 1 ? c.stage - 1 : null;
+    const sd = stageDays(c, now);
+
+    const actions = `<div class="dt-actions">
+      ${c.stage === LAST ? '<div class="fu-state">This work order is complete. Clear it out at month end with EOM Completion Wipe.</div>'
+        : c.ar ? `<button type="button" class="btn btn-ink btn-xl" data-sact="followup">${ICON.check}<span>Followed Up</span></button>`
+        : `<button type="button" class="btn btn-xl fu-again" data-sact="remark">${ICON.check}<span class="lbl"><span>${esc(arLabel(c, now))}</span><small>Tap to mark as follow-up needed</small></span></button>`}
+      ${nxt ? `<button type="button" class="btn btn-go btn-xl btn-stack" data-sact="next"><span class="lbl"><span>Next Stage</span><small>${esc(stageName(nxt))}</small></span>${ICON.right}</button>` : ''}
+      ${prv ? `<button type="button" class="btn btn-back" data-sact="prev">${ICON.left}<span>Previous</span><small>${esc(stageName(prv))}</small></button>` : ''}
+    </div>`;
+
+    const details = `<section class="dt-sec"><h3>Details</h3><dl class="kv">
+      <div class="kv-switch"><dt><label for="dt-emer">${c.emergency ? ICON.alert : ''}Emergency</label></dt><dd><input id="dt-emer" type="checkbox" role="switch" class="switch"${c.emergency ? ' checked' : ''}></dd></div>
+      <div><dt>Current Stage</dt><dd><span class="dot" style="${scv(c.stage)}"></span>${esc(stageName(c.stage))}</dd></div>
+      <div><dt>Days in Current Stage</dt><dd>${plural(sd, 'day', 'days')}</dd></div>
+      <div><dt>AR</dt><dd>${esc(arLabel(c, now))}</dd></div>
+      <div><dt>Last Follow-up</dt><dd>${c.lastFU != null ? esc(fmtDT(c.lastFU)) : 'None yet'}</dd></div>
+      <div><dt>Days Since Follow-Up</dt><dd>${dsfDays(c, now)}</dd></div>
+      <div><dt>Origin Date</dt><dd>${esc(fmtDT(c.origin))}</dd></div>
+      <div><dt>Age</dt><dd>${ageLabel(ageDays(c, now))}</dd></div>
+    </dl></section>`;
+
+    const eta = hasEta(c.stage)
+      ? `<section class="dt-sec"><h3>ETA</h3><div class="eta-row"><strong>${c.eta != null ? esc(fmtEta(c.eta)) : 'No ETA set'}</strong><button type="button" class="btn btn-ghost" data-sact="edit-eta">${ICON.edit}<span>${c.eta != null ? 'Edit ETA' : 'Set ETA'}</span></button></div></section>`
+      : '';
+
+    let conSec = '';
+    if (hasCon(c.stage)) {
+      const phone = con && con.phone ? `<a href="tel:${esc(con.phone.replace(/[^\d+]/g, ''))}">${esc(con.phone)}</a><button type="button" class="mini" data-sact="copy" data-copy="${esc(con.phone)}" aria-label="Copy phone number">${ICON.copy}</button>` : '<span class="muted">Not on file</span>';
+      const email = con && con.email ? `<a href="mailto:${esc(con.email)}">${esc(con.email)}</a><button type="button" class="mini" data-sact="copy" data-copy="${esc(con.email)}" aria-label="Copy email address">${ICON.copy}</button>` : '<span class="muted">Not on file</span>';
+      conSec = `<section class="dt-sec"><h3>Contractor</h3>
+        ${con ? `<p class="con-name">${esc(con.name)}</p><dl class="kv"><div><dt>Phone #</dt><dd>${phone}</dd></div><div><dt>Email</dt><dd>${email}</dd></div></dl>${con.notes ? `<div class="con-notes"><h4>Notes</h4><p>${esc(con.notes)}</p></div>` : ''}` : '<p class="muted">No contractor assigned.</p>'}
+        <div class="dt-row-btns"><button type="button" class="btn btn-ghost" data-sact="change-con">${ICON.users}<span>Change Contractor</span></button></div>
+      </section>`;
+    }
+
+    const hist = c.history.map((h, i) => {
+      const until = i + 1 < c.history.length ? c.history[i + 1].at : now;
+      const current = i === c.history.length - 1;
+      return `<li><span class="dot" style="${scv(h.stage)}"></span><span class="hist-name">${esc(stageName(h.stage))}${current ? '<span class="hist-now">Now</span>' : ''}</span><span class="hist-when">${esc(fmtDT(h.at))} · ${current ? 'so far ' : ''}${durText(Math.max(0, until - h.at))}</span></li>`;
+    }).join('');
+    const history = `<details class="dt-sec history"><summary>Stage History (${c.history.length})${ICON.down}</summary><ol class="hist">${hist}</ol></details>`;
+
+    const tools = `<div class="dt-tools"><button type="button" class="btn btn-ghost" data-sact="edit-info">${ICON.edit}<span>Edit info</span></button><button type="button" class="btn btn-quiet danger-text" data-sact="delete">${ICON.trash}<span>Delete</span></button></div>`;
+
+    const draft = sh.data.noteDraft != null ? sh.data.noteDraft : c.note || '';
+    const dirty = draft.trim() !== (c.note || '');
+    const shown = dirty ? Object.assign({}, c, { note: draft.trim() }) : c;
+    const notes = `<section class="dt-sec dt-note"><h3><label for="note-in">Notes</label></h3>
+      <div class="note-box"><textarea id="note-in" rows="2" maxlength="100" enterkeyhint="done" autocomplete="off" autocapitalize="sentences" placeholder="Add a note, like “Waiting on PO from DM”">${esc(draft)}</textarea><button type="button" class="icon-btn" data-sact="clear-note" aria-label="Clear note"${draft ? '' : ' hidden'}>${ICON.x}</button></div>
+      <p class="hint" id="note-hint">${esc(dirty ? 'Saves when you tap Done or tap away.' : noteHint(c))}</p>
+    </section>`;
+
+    return actions + cardHTML(shown, now, { static: true, full: true }) + notes + details + eta + conSec + history + tools;
+  }
+
+  // ---------- New / edit work order ----------
+  function findDup(field, value, exceptId) {
+    const v = norm(value);
+    if (!v) return null;
+    return db.cards.find((c) => c.id !== exceptId && norm(c[field]) === v) || null;
+  }
+  function openCardForm(opts) {
+    const card = opts && opts.card ? opts.card : null;
+    const isNew = !card;
+    const stores = [...new Set(db.cards.map((c) => c.store).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    openSheet({
+      kind: 'page',
+      cls: 'form-sheet',
+      title: isNew ? 'New Work Order' : 'Edit Work Order',
+      focus: '#wf-ref',
+      render: () => `<form class="form" novalidate autocomplete="off">
+          ${isNew ? '<p class="sheet-note">New cards start in <b>S1 Created</b> and show green (Action Required) until you follow up.</p>' : ''}
+          <div class="field"><label for="wf-ref">Reference #</label><input id="wf-ref" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" value="${esc(card ? card.ref : '')}"><p class="dup" id="wf-ref-dup" hidden></p></div>
+          <div class="field"><label for="wf-wo">Work Order #</label><input id="wf-wo" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" value="${esc(card ? card.wo : '')}"><p class="dup" id="wf-wo-dup" hidden></p></div>
+          <div class="field"><label for="wf-store">Store</label><input id="wf-store" list="wf-stores" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="DG 12205 Topeka, KS" value="${esc(card ? card.store : '')}"><datalist id="wf-stores">${stores.map((s) => `<option value="${esc(s)}"></option>`).join('')}</datalist></div>
+          <div class="field"><label for="wf-origin">Origin date &amp; time</label><input id="wf-origin" type="datetime-local" value="${toInput(card ? card.origin : Date.now())}"><p class="hint">When the work order came in. Age counts from here.</p></div>
+          ${isNew ? `<label class="switch-row" for="wf-emer"><span class="switch-text"><span class="switch-title">${ICON.alert}Emergency</span><span class="switch-sub">Stripes the card’s stage band and labels it Emergency until you switch it off.</span></span><input id="wf-emer" type="checkbox" role="switch" class="switch"></label>` : ''}
+          <p class="err" id="wf-err" hidden></p>
+          <div class="form-actions"><button type="button" class="btn btn-quiet" data-sact="close">Cancel</button><button type="submit" class="btn btn-primary">${isNew ? 'Add to S1' : 'Save Changes'}</button></div>
+        </form>`,
+      onMount: (sh) => {
+        const dupCheck = (field, inputId, outId) => {
+          const inp = sh.el.querySelector(inputId);
+          const out = sh.el.querySelector(outId);
+          const run = () => {
+            const d = findDup(field, inp.value, card ? card.id : null);
+            out.hidden = !d;
+            if (d) out.textContent = `Already on the board: ${stageName(d.stage)} · ${d.store || cardTitle(d)}`;
+          };
+          inp.addEventListener('input', run);
+          run();
+        };
+        dupCheck('ref', '#wf-ref', '#wf-ref-dup');
+        dupCheck('wo', '#wf-wo', '#wf-wo-dup');
+      },
+      onSubmit: (form, sh) => {
+        const $ = (s) => sh.el.querySelector(s);
+        const ref = $('#wf-ref').value.trim();
+        const wo = $('#wf-wo').value.trim();
+        const store = $('#wf-store').value.trim();
+        const origin = fromInput($('#wf-origin').value);
+        const emergency = isNew ? $('#wf-emer').checked : false;
+        const err = $('#wf-err');
+        const fail = (msg, sel) => { err.textContent = msg; err.hidden = false; if (sel) $(sel).focus(); };
+        if (!ref && !wo) return fail('Enter a Reference # or a Work Order #.', '#wf-ref');
+        if (!store) return fail('Enter the store name.', '#wf-store');
+        if (origin == null) return fail('Pick the origin date and time.', '#wf-origin');
+        const now = Date.now();
+        if (origin > now + 6e4) return fail('The origin time can’t be in the future.', '#wf-origin');
+        evaluateAR(now);
+        if (isNew) {
+          db.cards.push({ id: uid(), ref, wo, store, origin, createdAt: now, stage: 1, stageAt: now, history: [{ stage: 1, at: now }], contractorId: null, eta: null, ar: true, lastFU: null, dsfFrom: now, sample: false, note: '', noteAt: null, noteStage: null, emergency });
+          save();
+          closeSheet(sh);
+          render();
+          showToast(emergency ? 'Emergency added to S1 Created' : 'Added to S1 Created');
+          requestPersist();
+        } else {
+          const c = cardById(card.id);
+          if (!c) { closeSheet(sh); return; }
+          Object.assign(c, { ref, wo, store, origin });
+          save();
+          closeSheet(sh);
+          render();
+          showToast('Work order updated');
+        }
+      },
+    });
+  }
+
+  // ---------- ETA ----------
+  function openEtaSheet({ value, title, note, confirm, allowClear, onSave }) {
+    openSheet({
+      kind: 'page',
+      cls: 'form-sheet',
+      title,
+      focus: '#eta-in',
+      render: () => `<form class="form" novalidate>
+          ${note ? `<p class="sheet-note">${note}</p>` : ''}
+          <div class="field"><label for="eta-in">Contractor ETA</label><input id="eta-in" type="datetime-local" value="${value != null ? toInput(value) : ''}"><p class="hint" id="eta-hint">Date and time the contractor expects to arrive.</p></div>
+          <p class="eta-preview" id="eta-prev">${value != null ? esc(fmtEta(value)) : ''}</p>
+          <p class="err" id="eta-err" hidden></p>
+          <div class="form-actions">
+            ${allowClear ? '<button type="button" class="btn btn-quiet danger-text" data-sact="clear">Remove ETA</button>' : ''}
+            <button type="button" class="btn btn-quiet" data-sact="close">Cancel</button>
+            <button type="submit" class="btn btn-go">${esc(confirm)}</button>
+          </div>
+        </form>`,
+      onMount: (sh) => {
+        const inp = sh.el.querySelector('#eta-in');
+        const upd = () => {
+          const v = fromInput(inp.value);
+          sh.el.querySelector('#eta-prev').textContent = v != null ? fmtEta(v) : '';
+          sh.el.querySelector('#eta-hint').textContent = v != null && v < Date.now() ? 'That time has already passed. Double-check the date.' : 'Date and time the contractor expects to arrive.';
+        };
+        inp.addEventListener('input', upd);
+        inp.addEventListener('change', upd);
+      },
+      onSubmit: (form, sh) => {
+        const v = fromInput(sh.el.querySelector('#eta-in').value);
+        if (v == null) {
+          const err = sh.el.querySelector('#eta-err');
+          err.textContent = 'Pick the date and time the contractor expects to arrive.';
+          err.hidden = false;
+          return;
+        }
+        closeSheet(sh);
+        onSave(v);
+      },
+      acts: { clear: (el, sh) => { closeSheet(sh); onSave(null); } },
+    });
+  }
+
+  // ---------- Contractors ----------
+  const openCountFor = (id) => db.cards.filter((c) => c.contractorId === id && isOpen(c) && hasCon(c.stage)).length;
+  const sortedContractors = () => db.contractors.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+  function openContractorPicker({ currentId, title, note, onPick }) {
+    const st = { q: '' };
+    const rows = () => {
+      if (!db.contractors.length) return '<li class="pick-empty">No contractors yet. Add the first one with New Contractor.</li>';
+      const q = norm(st.q);
+      let list = sortedContractors();
+      if (q) list = list.filter((c) => norm(c.name).includes(q) || norm(c.notes).includes(q));
+      if (!list.length) return `<li class="pick-empty">No contractors match “${esc(st.q.trim())}”.</li>`;
+      const cur = list.findIndex((c) => c.id === currentId);
+      if (cur > 0) list.unshift(list.splice(cur, 1)[0]);
+      return list.map((c) => `<li><button type="button" class="pick-row" data-sact="pick" data-id="${esc(c.id)}"><span class="pick-name">${esc(c.name)}${c.id === currentId ? '<span class="pick-tag">Current</span>' : ''}</span><span class="pick-meta">${openCountFor(c.id)} open</span>${ICON.right}</button></li>`).join('');
+    };
+    openSheet({
+      kind: 'page',
+      cls: 'picker',
+      title,
+      render: () => `${note ? `<p class="sheet-note">${note}</p>` : ''}
+        <div class="picker-tools">
+          <label class="search-box"><span class="sr-only">Search contractors</span>${ICON.search}<input id="cp-q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search contractors"></label>
+          <button type="button" class="btn btn-ghost btn-wide" data-sact="new">${ICON.plus}<span>New Contractor</span></button>
+        </div>
+        <ul class="pick-list" id="cp-list">${rows()}</ul>`,
+      onMount: (sh) => {
+        const inp = sh.el.querySelector('#cp-q');
+        inp.addEventListener('input', () => { st.q = inp.value; sh.el.querySelector('#cp-list').innerHTML = rows(); });
+        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); });
+      },
+      acts: {
+        pick: (el, sh) => { const id = el.dataset.id; closeSheet(sh); onPick(id); },
+        new: (el, sh) => openContractorForm({ prefillName: st.q.trim(), onSaved: (c) => { closeSheet(sh); onPick(c.id); } }),
+      },
+    });
+  }
+
+  function openContractorForm({ contractor, prefillName, onSaved }) {
+    const isNew = !contractor;
+    const v = contractor || { name: prefillName || '', email: '', phone: '', notes: '' };
+    openSheet({
+      kind: 'page',
+      cls: 'form-sheet',
+      title: isNew ? 'New Contractor' : 'Edit Contractor',
+      focus: '#cf-name',
+      render: () => {
+        const used = isNew ? 0 : db.cards.filter((c) => c.contractorId === contractor.id).length;
+        return `<form class="form" novalidate>
+          <div class="field"><label for="cf-name">Contractor Name</label><input id="cf-name" autocomplete="organization" autocapitalize="words" enterkeyhint="next" value="${esc(v.name)}"></div>
+          <div class="field"><label for="cf-email">Email</label><input id="cf-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" value="${esc(v.email)}"></div>
+          <div class="field"><label for="cf-phone">Phone #</label><input id="cf-phone" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="next" value="${esc(v.phone)}"></div>
+          <div class="field"><label for="cf-notes">Notes</label><textarea id="cf-notes" rows="4">${esc(v.notes)}</textarea></div>
+          <p class="err" id="cf-err" hidden></p>
+          <div class="form-actions"><button type="button" class="btn btn-quiet" data-sact="close">Cancel</button><button type="submit" class="btn btn-primary">${isNew ? 'Add Contractor' : 'Save Changes'}</button></div>
+          ${isNew ? '' : `<div class="dt-tools"><span class="muted">${used ? `Assigned to ${plural(used, 'work order', 'work orders')}.` : 'Not assigned to any work orders.'}</span><button type="button" class="btn btn-quiet danger-text" data-sact="delete"${used ? ' disabled' : ''}>${ICON.trash}<span>Delete</span></button></div>`}
+        </form>`;
+      },
+      onSubmit: (form, sh) => {
+        const $ = (s) => sh.el.querySelector(s);
+        const name = $('#cf-name').value.trim();
+        const email = $('#cf-email').value.trim();
+        const phone = $('#cf-phone').value.trim();
+        const notes = $('#cf-notes').value.trim();
+        const err = $('#cf-err');
+        const fail = (msg, sel) => { err.textContent = msg; err.hidden = false; $(sel).focus(); };
+        if (!name) return fail('Enter the contractor’s name.', '#cf-name');
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('That email doesn’t look complete. Check it for typos.', '#cf-email');
+        const dup = db.contractors.find((c) => norm(c.name) === norm(name) && (isNew || c.id !== contractor.id));
+        if (dup) return fail(`${dup.name} is already in your contractor list.`, '#cf-name');
+        let saved;
+        if (isNew) {
+          saved = { id: uid(), name, email, phone, notes, createdAt: Date.now(), sample: false };
+          db.contractors.push(saved);
+        } else {
+          saved = conById(contractor.id);
+          if (saved) Object.assign(saved, { name, email, phone, notes, sample: false });
+        }
+        save();
+        closeSheet(sh);
+        if (onSaved && saved) onSaved(saved);
+        else { render(); showToast(isNew ? `Added ${name}` : 'Contractor saved'); }
+      },
+      acts: {
+        delete: async (el, sh) => {
+          const ok = await confirmDialog({ title: 'Delete this contractor?', message: `<p><b>${esc(contractor.name)}</b> will be removed from your contractor list.</p>`, confirm: 'Delete', danger: true });
+          if (!ok) return;
+          db.contractors = db.contractors.filter((c) => c.id !== contractor.id);
+          closeSheet(sh);
+          commit();
+          showToast('Contractor deleted');
+        },
+      },
+    });
+  }
+
+  function openContractorList() {
+    const st = { q: '' };
+    const rows = () => {
+      if (!db.contractors.length) return '<li class="pick-empty">No contractors yet. They’re added here or when you move a card into S2.</li>';
+      const q = norm(st.q);
+      const list = sortedContractors().filter((c) => !q || norm(c.name).includes(q) || norm(c.notes).includes(q) || norm(c.phone).includes(q) || norm(c.email).includes(q));
+      if (!list.length) return `<li class="pick-empty">No contractors match “${esc(st.q.trim())}”.</li>`;
+      return list.map((c) => `<li><button type="button" class="pick-row" data-sact="edit" data-id="${esc(c.id)}"><span class="pick-name">${esc(c.name)}<span class="pick-sub">${esc([c.phone, c.email].filter(Boolean).join(' · ') || 'No phone or email on file')}</span></span><span class="pick-meta">${openCountFor(c.id)} open</span>${ICON.right}</button></li>`).join('');
+    };
+    openSheet({
+      kind: 'page',
+      cls: 'picker',
+      title: 'Manage Contractors',
+      live: true,
+      render: () => `<div class="picker-tools">
+          <label class="search-box"><span class="sr-only">Search contractors</span>${ICON.search}<input id="cl-q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search contractors" value="${esc(st.q)}"></label>
+          <button type="button" class="btn btn-ghost btn-wide" data-sact="new">${ICON.plus}<span>New Contractor</span></button>
+        </div>
+        <ul class="pick-list" id="cl-list">${rows()}</ul>`,
+      afterRender: (sh) => {
+        const inp = sh.el.querySelector('#cl-q');
+        inp.addEventListener('input', () => { st.q = inp.value; sh.el.querySelector('#cl-list').innerHTML = rows(); });
+        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); });
+      },
+      acts: {
+        new: () => openContractorForm({}),
+        edit: (el) => { const c = conById(el.dataset.id); if (c) openContractorForm({ contractor: c }); },
+      },
+    });
+  }
+
+  // ---------- Stage menu ----------
+  function openStageMenu() {
+    openSheet({
+      kind: 'menu',
+      cls: 'stage-menu',
+      title: 'Go to',
+      render: () => {
+        const counts = stageCounts();
+        return `<ul class="menu-list">${STAGES.map((s, i) => `<li><button type="button" class="menu-row${i === ui.tab ? ' on' : ''}" data-sact="go" data-tab="${i}" style="${scv(i)}"${i === ui.tab ? ' aria-current="page"' : ''}>
+            <span class="chip">${i === 0 ? ICON.grid : 'S' + i}</span>
+            <span class="menu-names"><span class="menu-short">${esc(i === 0 ? 'Overview' : s.short)}</span>${i ? `<span class="menu-full">${esc(s.full)}</span>` : '<span class="menu-full">Search, follow-ups, and stats</span>'}</span>
+            <span class="menu-nums">${counts.due[i] ? `<span class="menu-due">${counts.due[i]} due</span>` : ''}<span class="menu-count">${counts.total[i]}</span></span>
+          </button></li>`).join('')}</ul>`;
+      },
+      acts: { go: (el, sh) => { const t = +el.dataset.tab; closeSheet(sh); goTab(t); } },
+    });
+  }
+
+  // ---------- Settings, backups, maintenance ----------
+  const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  function saveFile(text, name) {
+    const blob = new Blob([text], { type: 'application/json' });
+    if (isIOS() && navigator.canShare && typeof File === 'function') {
+      try {
+        const file = new File([blob], name, { type: 'application/json' });
+        if (navigator.canShare({ files: [file] })) {
+          return navigator.share({ files: [file], title: name }).then(() => 'shared', (e) => (e && e.name === 'AbortError' ? 'cancelled' : download()));
+        }
+      } catch (e) { /* fall through to a download */ }
+    }
+    return Promise.resolve(download());
+    function download() {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      return 'downloaded';
+    }
+  }
+
+  function createBackup() {
+    if (BUILD === 'preview') {
+      showToast('This preview can’t save files. Backups work in the GitHub Pages version.');
+      return;
+    }
+    const now = Date.now();
+    evaluateAR(now);
+    const payload = { app: 'woc-board', version: 1, exportedAt: new Date(now).toISOString(), data: { cards: db.cards, contractors: db.contractors, lastEval: db.lastEval } };
+    const name = `woc-backup-${stamp(now)}.json`;
+    saveFile(JSON.stringify(payload, null, 2), name).then((result) => {
+      if (result === 'cancelled') return;
+      db.lastBackupAt = now;
+      save();
+      render();
+      showToast(result === 'shared' ? 'Backup file ready' : `Backup saved as ${name}`);
+    });
+  }
+
+  function restoreFromFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onerror = () => showToast('Couldn’t read that file.');
+    reader.onload = async () => {
+      let parsed = null;
+      try { parsed = JSON.parse(String(reader.result)); } catch (e) { parsed = null; }
+      const looksRight = parsed && typeof parsed === 'object' && (parsed.app === 'woc-board' || (parsed.data && Array.isArray(parsed.data.cards)) || Array.isArray(parsed.cards));
+      if (!looksRight) { showToast('That file isn’t a WOC Board backup.'); return; }
+      const next = normalizeDb(parsed);
+      const when = parsed.exportedAt && !isNaN(Date.parse(parsed.exportedAt)) ? fmtDT(Date.parse(parsed.exportedAt)) : 'an unknown date';
+      const ok = await confirmDialog({
+        title: 'Load this backup?',
+        message: `<p>The backup from <b>${esc(when)}</b> has ${plural(next.cards.length, 'work order', 'work orders')} and ${plural(next.contractors.length, 'contractor', 'contractors')}.</p><p>Loading it replaces everything on this device right now (${plural(db.cards.length, 'work order', 'work orders')}, ${plural(db.contractors.length, 'contractor', 'contractors')}).</p>`,
+        confirm: 'Replace with Backup',
+        danger: true,
+      });
+      if (!ok) return;
+      const prev = db;
+      next.lastBackupAt = prev.lastBackupAt;
+      db = next;
+      commit();
+      showToast('Backup loaded', () => { db = prev; commit(); showToast('Back to the data you had before'); });
+    };
+    reader.readAsText(file);
+  }
+
+  async function eomWipe() {
+    const n = db.cards.filter((c) => c.stage === LAST).length;
+    if (!n) { showToast('S11 Completed Invoice is already empty.'); return; }
+    const ok = await confirmDialog({
+      title: 'EOM Completion Wipe',
+      message: `<p>Remove the ${plural(n, 'work order', 'work orders')} in <b>S11 Completed Invoice</b>?</p><p>Nothing else in the app changes.</p>`,
+      confirm: `Remove ${n}`,
+      danger: true,
+    });
+    if (!ok) return;
+    db.cards = db.cards.filter((c) => c.stage !== LAST);
+    commit();
+    showToast(`Removed ${plural(n, 'completed work order', 'completed work orders')}`);
+  }
+
+  async function resetAll() {
+    const n = db.cards.length;
+    if (!n) { showToast('There are no work orders to delete.'); return; }
+    const first = await confirmDialog({
+      title: 'Reset all data?',
+      message: `<p>This deletes all ${plural(n, 'work order', 'work orders')} in every stage. Your contractor list stays.</p>`,
+      confirm: 'Continue',
+      danger: true,
+    });
+    if (!first) return;
+    const second = await confirmDialog({
+      title: 'Are you sure?',
+      message: '<p>There’s no undo. If you might need these work orders later, cancel and create a backup first.</p>',
+      confirm: 'Delete Everything',
+      danger: true,
+    });
+    if (!second) return;
+    db.cards = [];
+    commit();
+    showToast('All work orders deleted');
+  }
+
+  function openSettings() {
+    openSheet({
+      kind: 'page',
+      cls: 'settings',
+      title: 'Settings',
+      live: true,
+      render: () => {
+        const now = Date.now();
+        const s11 = db.cards.filter((c) => c.stage === LAST).length;
+        return `<div class="set-list">
+            <button type="button" class="set-row" data-sact="contractors">${ICON.users}<span class="set-main"><span class="set-title">Manage Contractors</span><span class="set-sub">${plural(db.contractors.length, 'contractor', 'contractors')}</span></span>${ICON.right}</button>
+            <button type="button" class="set-row" data-sact="backup">${ICON.download}<span class="set-main"><span class="set-title">Create Backup</span><span class="set-sub">Last backup: ${esc(lastBackupText(now))}</span></span></button>
+            <button type="button" class="set-row" data-sact="restore">${ICON.upload}<span class="set-main"><span class="set-title">Load Backup</span><span class="set-sub">Replace this board with a saved backup file</span></span></button>
+          </div>
+          <h3 class="set-head">Maintenance</h3>
+          <div class="set-list">
+            <button type="button" class="set-row" data-sact="eom">${ICON.archive}<span class="set-main"><span class="set-title">EOM Completion Wipe</span><span class="set-sub">${s11 ? `Removes the ${plural(s11, 'work order', 'work orders')} in S11 Completed Invoice. Nothing else changes.` : 'S11 Completed Invoice is empty.'}</span></span></button>
+          </div>
+          <div class="set-gap"></div>
+          <div class="set-list">
+            <button type="button" class="set-row danger" data-sact="reset">${ICON.trash}<span class="set-main"><span class="set-title">Reset All Data</span><span class="set-sub">Deletes every work order in every stage. Contractors stay.</span></span></button>
+          </div>
+          <input type="file" id="restore-file" class="sr-only" accept=".json,application/json" tabindex="-1" aria-hidden="true">
+          <p class="set-foot">Your board is saved in this browser on this device only. Create a backup regularly and keep the file somewhere safe, like iCloud Drive or Google Drive.</p>`;
+      },
+      afterRender: (sh) => {
+        const inp = sh.el.querySelector('#restore-file');
+        inp.addEventListener('change', () => { const f = inp.files && inp.files[0]; inp.value = ''; restoreFromFile(f); });
+      },
+      acts: {
+        contractors: () => openContractorList(),
+        backup: () => createBackup(),
+        restore: (el, sh) => sh.el.querySelector('#restore-file').click(),
+        eom: () => eomWipe(),
+        reset: () => resetAll(),
+      },
+    });
+  }
+
+  // ---------- Sample data ----------
+  function loadSamples() {
+    const now = Date.now();
+    evaluateAR(now);
+    const ymd = (days, h, m) => { const d = new Date(now); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days, h, m || 0).getTime(); };
+    const past = (days, h, m) => Math.min(ymd(days, h, m), now - 6e4);
+    const L = latest8am(now);
+    const fuToday = Math.max(L, Math.min(now - 6e4, L + 50 * 6e4));
+    const cons = {
+      prairie: ['Prairie Mechanical', 'dispatch@prairiemech.example', '(785) 555-0142', 'HVAC and refrigeration. Text first, then call.'],
+      heartland: ['Heartland Door & Glass', 'service@heartlanddoor.example', '(316) 555-0178', 'Storefront doors, glass, and closers. Needs a PO before quoting.'],
+      sunflower: ['Sunflower Electric', 'office@sunflowerelectric.example', '(913) 555-0113', 'Lighting and panels. After-hours rate applies after 6pm.'],
+      flint: ['Flint Hills Plumbing', 'jobs@flinthillsplumbing.example', '(620) 555-0190', 'Water heaters and drains. Usually quotes the same day.'],
+      roof: ['Midwest Roof Pros', 'help@midwestroofpros.example', '(402) 555-0155', ''],
+    };
+    const conIds = {};
+    for (const k of Object.keys(cons)) {
+      const [name, email, phone, notes] = cons[k];
+      const existing = db.contractors.find((c) => norm(c.name) === norm(name));
+      if (existing) { conIds[k] = existing.id; continue; }
+      const id = uid();
+      conIds[k] = id;
+      db.contractors.push({ id, name, email, phone, notes, createdAt: now, sample: true });
+    }
+    const specs = [
+      { ref: '4410238', wo: '88123', store: 'DG 12205 Topeka, KS', stage: 1, origin: [0, 7, 40], inStage: 0, state: 'ar', dsf: 0 },
+      { ref: '4410251', wo: '88140', store: 'DG 08817 Wichita, KS', stage: 1, origin: [-1, 13, 5], inStage: 1, state: 'ar', dsf: 1 },
+      { ref: '4409987', wo: '87990', store: 'DG 15532 Lawrence, KS', stage: 2, origin: [-3, 9, 20], inStage: 2, con: 'heartland', state: 'today' },
+      { ref: '4409912', wo: '87931', store: 'DG 11064 Salina, KS', stage: 2, origin: [-4, 11, 45], inStage: 3, con: 'prairie', state: 'ar', dsf: 2 },
+      { ref: '4409750', wo: '87802', store: 'DG 09421 Manhattan, KS', stage: 3, origin: [-6, 8, 30], inStage: 2, con: 'sunflower', eta: [0, 13, 0], state: 'ar', dsf: 2 },
+      { ref: '4409733', wo: '87790', store: 'DG 13377 Emporia, KS', stage: 3, origin: [-5, 14, 10], inStage: 1, con: 'flint', eta: [3, 9, 30], state: 'yesterday' },
+      { ref: '4409501', wo: '87655', store: 'DG 10288 Hutchinson, KS', stage: 4, origin: [-9, 10, 0], inStage: 1, con: 'prairie', eta: [-1, 10, 0], state: 'ar', dsf: 1 },
+      { ref: '4409320', wo: '87512', store: 'DG 07734 Junction City, KS', stage: 5, origin: [-14, 15, 30], inStage: 4, con: 'roof', eta: [-5, 11, 0], state: 'ar', dsf: 4 },
+      { ref: '4409102', wo: '87390', store: 'DG 14650 Ottawa, KS', stage: 6, origin: [-17, 9, 0], inStage: 2, con: 'heartland', eta: [-8, 9, 0], state: 'today' },
+      { ref: '4408890', wo: '87201', store: 'DG 12980 Newton, KS', stage: 7, origin: [-21, 12, 15], inStage: 3, con: 'sunflower', eta: [1, 8, 0], state: 'ar', dsf: 3 },
+      { ref: '4408655', wo: '87044', store: 'DG 06612 Leavenworth, KS', stage: 8, origin: [-26, 10, 40], inStage: 2, con: 'flint', state: 'ar', dsf: 2 },
+      { ref: '4408411', wo: '86870', store: 'DG 11893 Olathe, KS', stage: 9, origin: [-30, 8, 50], inStage: 1, con: 'prairie', state: 'today' },
+      { ref: '4408150', wo: '86702', store: 'DG 09034 Garden City, KS', stage: 10, origin: [-38, 13, 0], inStage: 6, con: 'roof', state: 'ar', dsf: 6 },
+      { ref: '4407720', wo: '86311', store: 'DG 15108 Dodge City, KS', stage: 11, origin: [-47, 9, 10], inStage: 2, con: 'heartland', state: 'complete' },
+    ];
+    for (const s of specs) {
+      if (findDup('wo', s.wo)) continue;
+      const origin = past(s.origin[0], s.origin[1], s.origin[2]);
+      const stageAt = s.stage === 1 ? origin : Math.max(origin + 6e4, past(-s.inStage, 10, 30));
+      const history = [];
+      for (let k = 1; k <= s.stage; k++) {
+        const t = s.stage === 1 ? origin : Math.round(origin + ((stageAt - origin) * (k - 1)) / (s.stage - 1));
+        history.push({ stage: k, at: k === s.stage ? stageAt : t });
+      }
+      const eta = s.eta ? ymd(s.eta[0], s.eta[1], s.eta[2]) : null;
+      let ar = true;
+      let lastFU = null;
+      let dsfFrom = origin;
+      if (s.state === 'ar' && s.dsf > 0) { lastFU = Math.max(origin, past(-s.dsf, 15, 10)); dsfFrom = lastFU; }
+      if (s.state === 'today') { ar = false; lastFU = fuToday; dsfFrom = fuToday; }
+      if (s.state === 'yesterday') { ar = false; lastFU = Math.max(origin, past(-1, 14, 20)); dsfFrom = lastFU; }
+      if (s.state === 'complete') { ar = false; lastFU = past(-s.inStage, 9, 40); dsfFrom = lastFU; }
+      if (s.stage === 3 && eta != null && L < at8(eta)) ar = false;
+      const note = SAMPLE_NOTES[s.wo] || '';
+      db.cards.push({ id: uid(), ref: s.ref, wo: s.wo, store: s.store, origin, createdAt: origin, stage: s.stage, stageAt, history, contractorId: s.con ? conIds[s.con] : null, eta, ar, lastFU, dsfFrom, sample: true, note, noteAt: note ? stageAt : null, noteStage: note ? s.stage : null, emergency: SAMPLE_EMERGENCY.has(s.wo) });
+    }
+    setFlag(NOTES_SEEDED_KEY);
+    setFlag(EMER_SEEDED_KEY);
+    db.lastEval = now;
+    save();
+    render();
+  }
+
+  function backfillSampleNotes() {
+    if (getFlag(NOTES_SEEDED_KEY)) return;
+    for (const c of db.cards) {
+      if (c.sample && !c.note && SAMPLE_NOTES[c.wo]) { c.note = SAMPLE_NOTES[c.wo]; c.noteAt = c.stageAt; c.noteStage = c.stage; }
+    }
+    setFlag(NOTES_SEEDED_KEY);
+  }
+  function backfillSampleEmergency() {
+    if (getFlag(EMER_SEEDED_KEY)) return;
+    for (const c of db.cards) if (c.sample && SAMPLE_EMERGENCY.has(c.wo)) c.emergency = true;
+    setFlag(EMER_SEEDED_KEY);
+  }
+
+  function clearSamples() {
+    const keep = new Set(db.cards.filter((c) => !c.sample).map((c) => c.contractorId));
+    db.cards = db.cards.filter((c) => !c.sample);
+    db.contractors = db.contractors.filter((c) => !c.sample || keep.has(c.id));
+    commit();
+    showToast('Sample work orders cleared');
+  }
+
+  function requestPersist() {
+    try {
+      if (navigator.storage && navigator.storage.persist && navigator.storage.persisted) {
+        navigator.storage.persisted().then((p) => (p ? null : navigator.storage.persist())).catch(() => {});
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---------- Global events ----------
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.sheet-wrap')) return;
+    const el = e.target.closest('[data-act]');
+    if (!el || el.disabled) return;
+    switch (el.dataset.act) {
+      case 'tab': goTab(+el.dataset.tab); break;
+      case 'prev': goTab(ui.tab - 1); break;
+      case 'next': goTab(ui.tab + 1); break;
+      case 'menu': openStageMenu(); break;
+      case 'open-card': openDetail(el.dataset.id); break;
+      case 'new-card': openCardForm(); break;
+      case 'settings': openSettings(); break;
+      case 'load-samples': loadSamples(); showToast('Sample work orders loaded'); break;
+      case 'clear-samples': clearSamples(); break;
+      case 'toggle-list': ui.expanded = ui.expanded === el.dataset.list ? null : el.dataset.list; render(); break;
+      case 'field': {
+        ui.field = el.dataset.field;
+        savePrefs();
+        const root = $main.querySelector('.overview');
+        if (root) {
+          root.querySelectorAll('.seg-btn').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.field === ui.field)));
+          const q = root.querySelector('#ov-q');
+          q.placeholder = FIELDS.find((x) => x.k === ui.field).ph;
+          updateSearch(Date.now());
+        }
+        break;
+      }
+      case 'clear-search': {
+        ui.query = '';
+        const q = $main.querySelector('#ov-q');
+        if (q) { q.value = ''; q.focus(); }
+        updateSearch(Date.now());
+        break;
+      }
+      case 'toast-undo': { const fn = toastUndo; hideToast(); if (fn) fn(); break; }
+      default: break;
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sheetStack.length) { closeSheet(sheetStack[sheetStack.length - 1]); return; }
+    const t = e.target;
+    if ((e.key === 'Enter' || e.key === ' ') && t && t.matches && t.matches('article[role="button"][data-act]')) { e.preventDefault(); t.click(); return; }
+    const typing = t && t.closest && t.closest('input, textarea, select, [contenteditable="true"]');
+    if (!sheetStack.length && !typing && !e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+      if (e.key === 'ArrowLeft') goTab(ui.tab - 1);
+      else if (e.key === 'ArrowRight') goTab(ui.tab + 1);
+    }
+  });
+
+  // Swipe left or right on the board to change tabs.
+  (() => {
+    let sx = 0, sy = 0, st = 0, track = false;
+    $main.addEventListener('touchstart', (e) => {
+      track = false;
+      if (sheetStack.length || e.touches.length !== 1) return;
+      if (e.target.closest('[data-noswipe], input, textarea')) return;
+      const p = e.touches[0];
+      if (p.clientX < 24 || p.clientX > window.innerWidth - 24) return;
+      sx = p.clientX; sy = p.clientY; st = Date.now(); track = true;
+    }, { passive: true });
+    $main.addEventListener('touchend', (e) => {
+      if (!track) return;
+      track = false;
+      const p = e.changedTouches[0];
+      const dx = p.clientX - sx;
+      const dy = p.clientY - sy;
+      if (Date.now() - st < 700 && Math.abs(dx) > 80 && Math.abs(dx) > 2.2 * Math.abs(dy)) goTab(ui.tab + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+  })();
+
+  // ---------- Clock ----------
+  let eightTimer = null;
+  function scheduleEight() {
+    clearTimeout(eightTimer);
+    const wait = Math.min(next8am(Date.now()) - Date.now() + 1500, 6 * 36e5);
+    eightTimer = setTimeout(() => { tick(); scheduleEight(); }, Math.max(1000, wait));
+  }
+  function tick(force) {
+    const now = Date.now();
+    const changed = evaluateAR(now);
+    if (changed) save();
+    if (changed || force || dayStart(now) !== lastRenderDay) render();
+  }
+
+  // ---------- Boot ----------
+  function boot() {
+    try { if (history.state && history.state.woc) history.replaceState(null, ''); } catch (e) { /* ignore */ }
+    const hadData = hasStoredData();
+    db = load();
+    loadPrefs();
+    if (BUILD === 'preview' && !hadData && !getFlag(SEEDED_KEY)) {
+      loadSamples();
+      setFlag(SEEDED_KEY);
+    }
+    backfillSampleNotes();
+    backfillSampleEmergency();
+    evaluateAR(Date.now());
+    save();
+    render();
+    scheduleEight();
+    setInterval(tick, 30000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { if (ui.detail) commitNote(ui.detail); return; }
+      tick(true);
+      scheduleEight();
+    });
+    window.addEventListener('focus', () => tick());
+    window.addEventListener('pageshow', (e) => { if (e.persisted) tick(true); });
+    window.addEventListener('storage', (e) => { if (e.key === KEY) { db = load(); render(); } });
+    if (db.cards.length) requestPersist();
+    if (BUILD === 'pages' && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+    }
+  }
+
+  // Exposed for automated tests only.
+  window.__woc = { get db() { return db; }, evaluateAR, sortCards, dsfDays, ageDays, arLabel, latest8am, render, goTab };
+
+  boot();
+})();
+
+</script>
+</body>
+</html>
