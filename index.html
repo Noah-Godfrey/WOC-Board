@@ -951,10 +951,10 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     { short: 'Quote', full: 'Return Needs Quote', color: '#E2711D', ink: '#1E1205' },
     { short: 'Pending', full: 'Quote Needs Approval', color: '#E8B828', ink: '#231A00' },
     { short: 'Approved', full: 'Approved Quote', color: '#86B22D', ink: '#14200A' },
-    { short: 'Repaired', full: 'Work Complete', color: '#8B5A33', ink: '#FFFFFF' },
+    { short: 'Complete', full: 'Work Complete', color: '#8B5A33', ink: '#FFFFFF' },
     { short: 'Invoice', full: 'Invoice Needed', color: '#D23B55', ink: '#FFFFFF' },
     { short: 'Submitted', full: 'Submitted Invoice', color: '#A8459B', ink: '#FFFFFF' },
-    { short: 'Completed', full: 'Completed Invoice', color: '#C5CDC9', ink: '#121A16' },
+    { short: 'Closed', full: 'Work Order Closed', color: '#C5CDC9', ink: '#121A16' },
   ];
   const hasEta = (s) => s >= 3 && s <= 7;      // ETA shows from S3 until the card moves into S8
   const hasCon = (s) => s >= 2;                // contractor shows from S2 on
@@ -1384,7 +1384,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
           <span class="bs-nums"><span class="bs-count">${tot}</span>${counts.due[i] ? `<span class="bs-due">${counts.due[i]} due</span>` : ''}</span>
         </button></li>`;
     }).join('')}</ol>`);
-    parts.push(`<p class="by-stage-total">${plural(counts.total[0], 'open work order', 'open work orders')} · ${counts.total[LAST]} completed</p>`);
+    parts.push(`<p class="by-stage-total">${plural(counts.total[0], 'open work order', 'open work orders')} · ${counts.total[LAST]} closed</p>`);
 
     const stale = db.cards.length > 0 && (db.lastBackupAt == null || daysBetween(db.lastBackupAt, now) >= 7);
     parts.push(`<div class="ov-foot"><button type="button" class="settings-btn" data-act="settings">${ICON.gear}<span>Settings</span></button><p class="backup-note${stale ? ' stale' : ''}">Last backup: ${esc(lastBackupText(now))}</p></div>`);
@@ -1394,7 +1394,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
   // ----- Stage tabs -----
   function emptyStageHTML(t) {
     if (t === 1) return '<div class="empty"><strong>No new work orders</strong><p>Tap the + button to add one. New cards always start here.</p></div>';
-    if (t === LAST) return '<div class="empty"><strong>No completed invoices</strong><p>Work orders land here when an invoice is completed. Clear them out at month end with EOM Completion Wipe in Settings.</p></div>';
+    if (t === LAST) return '<div class="empty"><strong>No closed work orders</strong><p>Work orders land here once they’re closed. Clear them out at month end with EOM Completion Wipe in Settings.</p></div>';
     return `<div class="empty"><strong>Nothing in ${esc(STAGES[t].short)} right now</strong><p>Cards arrive here when you press Next Stage on a work order in ${esc(stageName(t - 1))}.</p></div>`;
   }
   function renderStage(now) {
@@ -2244,17 +2244,17 @@ details.history[open] > summary svg { transform: rotate(180deg); }
 
   async function eomWipe() {
     const n = db.cards.filter((c) => c.stage === LAST).length;
-    if (!n) { showToast('S11 Completed Invoice is already empty.'); return; }
+    if (!n) { showToast('S11 Work Order Closed is already empty.'); return; }
     const ok = await confirmDialog({
       title: 'EOM Completion Wipe',
-      message: `<p>Remove the ${plural(n, 'work order', 'work orders')} in <b>S11 Completed Invoice</b>?</p><p>Nothing else in the app changes.</p>`,
+      message: `<p>Remove the ${plural(n, 'work order', 'work orders')} in <b>S11 Work Order Closed</b>?</p><p>Nothing else in the app changes.</p>`,
       confirm: `Remove ${n}`,
       danger: true,
     });
     if (!ok) return;
     db.cards = db.cards.filter((c) => c.stage !== LAST);
     commit();
-    showToast(`Removed ${plural(n, 'completed work order', 'completed work orders')}`);
+    showToast(`Removed ${plural(n, 'closed work order', 'closed work orders')}`);
   }
 
   async function resetAll() {
@@ -2295,7 +2295,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
           </div>
           <h3 class="set-head">Maintenance</h3>
           <div class="set-list">
-            <button type="button" class="set-row" data-sact="eom">${ICON.archive}<span class="set-main"><span class="set-title">EOM Completion Wipe</span><span class="set-sub">${s11 ? `Removes the ${plural(s11, 'work order', 'work orders')} in S11 Completed Invoice. Nothing else changes.` : 'S11 Completed Invoice is empty.'}</span></span></button>
+            <button type="button" class="set-row" data-sact="eom">${ICON.archive}<span class="set-main"><span class="set-title">EOM Completion Wipe</span><span class="set-sub">${s11 ? `Removes the ${plural(s11, 'work order', 'work orders')} in S11 Work Order Closed. Nothing else changes.` : 'S11 Work Order Closed is empty.'}</span></span></button>
           </div>
           <div class="set-gap"></div>
           <div class="set-list">

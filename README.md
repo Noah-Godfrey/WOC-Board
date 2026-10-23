@@ -15,7 +15,7 @@ A phone-first follow-up tracker for work orders moving through the contractor li
 - **Work order cards (WOCs)** show the Reference #, Work Order #, store, age, and Days Since Follow-Up. From S2 on they show the contractor; from S3 through S7 they show the ETA.
 - **Green means Action Required. Grey means followed up.** Every card turns green again at 8am each day, except:
   - **S3 Contractor Accepted** cards wait until 8am on the ETA date.
-  - **S11 Completed Invoice** cards never need action.
+  - **S11 Work Order Closed** cards never need action.
 - Open a card and tap **Followed Up** to turn it grey. That resets its Days Since Follow-Up (DSF). If more comes up the same day, tap the grey button and confirm **Mark as Follow-Up Needed?** to turn it green again.
 - **Notes** give a card context at its current stage (for example, "Waiting on PO from DM"). They show under the store name and are edited in the card's detail view, which also shows when the note was last updated and in which stage.
 - **Emergency** work orders: switch on Emergency when you add the card, or later in its detail view. The card's stage band gets white diagonal stripes and an Emergency label in every stage, through S11, until you switch it off or delete the card.
@@ -33,10 +33,10 @@ A phone-first follow-up tracker for work orders moving through the contractor li
 | S5 | Quote | Return Needs Quote |
 | S6 | Pending | Quote Needs Approval |
 | S7 | Approved | Approved Quote |
-| S8 | Repaired | Work Complete |
+| S8 | Complete | Work Complete |
 | S9 | Invoice | Invoice Needed |
 | S10 | Submitted | Submitted Invoice |
-| S11 | Completed | Completed Invoice |
+| S11 | Closed | Work Order Closed |
 
 ## Your data
 
@@ -50,7 +50,7 @@ Clearing your browser's website data will erase the board, so back up first.
 
 - **Manage Contractors**: edit names, emails, phone numbers, and notes.
 - **Create Backup / Load Backup**
-- **EOM Completion Wipe**: removes the cards in S11 Completed Invoice and nothing else.
+- **EOM Completion Wipe**: removes the cards in S11 Work Order Closed and nothing else.
 - **Reset All Data**: deletes every work order (two confirmations). The contractor list stays.
 
 ## Files
