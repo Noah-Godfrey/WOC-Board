@@ -309,6 +309,8 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .woc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .woc-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; letter-spacing: 0.02em; text-align: right; }
 .woc-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.woc-status.snz::before { display: none; }
+.woc-status svg { width: 14px; height: 14px; }
 .woc.done .woc-status::before, .woc.complete .woc-status::before { background: transparent; box-shadow: inset 0 0 0 2px currentColor; }
 .woc-ids { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; }
 .woc-ids > div { min-width: 0; }
@@ -345,6 +347,7 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .woc-foot::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: currentColor; opacity: 0.32; }
 .woc-con { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
 .woc-con.none { opacity: 0.75; font-style: italic; }
+.woc-snooze { font-size: 14.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .woc-eta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 14.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .eta-today { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--ar-ink); color: var(--ar); }
 .woc.done .eta-today, .woc.complete .eta-today { background: var(--done-ink); color: var(--done); }
@@ -460,6 +463,9 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .tile.good .tile-num { color: var(--ar); }
 .tile-lbl { font-weight: 700; font-size: 15px; }
 .tile-sub { font-size: 13px; color: var(--ink-2); }
+.tile.wide { grid-column: 1 / -1; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 2px 14px; }
+.tile.wide .tile-num { grid-row: 1 / 3; min-width: 1.2ch; }
+.tile.wide .tile-lbl, .tile.wide .tile-sub { grid-column: 2; }
 .tile[aria-expanded="true"] { box-shadow: var(--shadow-card), inset 0 0 0 2px var(--ink); }
 
 .oldest {
@@ -740,6 +746,14 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .fu-state svg { width: 20px; height: 20px; }
 .fu-again { justify-content: flex-start; gap: 12px; padding: 8px 18px; background: var(--done); color: var(--done-ink); text-align: left; }
 .fu-again .lbl { display: grid; gap: 1px; }
+.fu-row { display: flex; align-items: stretch; gap: 10px; }
+.fu-row > .btn { width: auto; }
+.fu-row > .btn:first-child { flex: 1 1 0; min-width: 0; }
+.fu-row .fu-again { gap: 10px; padding: 8px 14px; }
+.fu-row .fu-again .lbl > span, .fu-again.snoozed .lbl > span { font-size: 17px; }
+.fu-row .fu-again small { font-size: 12.5px; }
+.btn-snooze { flex: none; width: 88px; min-height: 58px; flex-direction: column; gap: 3px; padding: 6px 8px; border-radius: 15px; font-size: 14.5px; }
+.btn-snooze svg { width: 22px; height: 22px; }
 .fu-again small { font-size: 13.5px; font-weight: 600; opacity: 0.82; }
 .dt-sec { margin-top: 18px; }
 .dt-sec > h3, .dt-sec > summary { margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
@@ -858,6 +872,18 @@ details.history[open] > summary svg { transform: rotate(180deg); }
 .err { margin: 0; color: var(--danger); font-size: 14px; font-weight: 600; }
 .dup { margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); color: var(--warn); font-size: 13.5px; font-weight: 600; }
 .form-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.quick-btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 14.5px;
+}
+.quick-btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
 .eta-preview { margin: -4px 0 0; font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
 
 /* ---------- Pickers & lists ---------- */
@@ -923,6 +949,8 @@ details.history[open] > summary svg { transform: rotate(180deg); }
   const NOTES_SEEDED_KEY = 'wocBoard.sampleNotes';
   const EMER_SEEDED_KEY = 'wocBoard.sampleEmergency';
   const SAMPLE_EMERGENCY = new Set(['87931', '87512']);
+  const SNOOZE_SEEDED_KEY = 'wocBoard.sampleSnooze';
+  const SAMPLE_SNOOZE = { '87390': [1, 13], '86870': [2, 8] };
   const SAMPLE_NOTES = {
     '88140': 'Front door glass cracked, taped for now',
     '87990': 'Door closer broken, using side entrance',
@@ -988,6 +1016,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     trash: svg('<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'),
     copy: svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
     edit: svg('<path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
+    snooze: svg('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>', 2.2),
     alert: svg('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>', 2.4),
   };
 
@@ -1021,6 +1050,14 @@ details.history[open] > summary svg { transform: rotate(180deg); }
   const fmtEta = (ms) => `ETA - ${fmtTime(ms)} ${fmtDate(ms)}`;
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmtSnooze = (ms) => `${fmtTime(ms)} ${fmtDate(ms)}`;
+  function fmtSoon(ms, now) {
+    const d = daysBetween(now, ms);
+    if (d === 0) return `today at ${fmtTime(ms)}`;
+    if (d === 1) return `tomorrow at ${fmtTime(ms)}`;
+    if (d > 1 && d < 7) return `${DOW[new Date(ms).getDay()]} at ${fmtTime(ms)}`;
+    return `${fmtDate(ms).slice(0, 5)} at ${fmtTime(ms)}`;
+  }
   const fmtToday = (ms) => { const d = new Date(ms); return `${DOW[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}`; };
   function toInput(ms) { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
   function fromInput(v) {
@@ -1043,12 +1080,14 @@ details.history[open] > summary svg { transform: rotate(180deg); }
   const ageLabel = (n) => `${n} ${n === 1 ? 'Day' : 'Days'} Old`;
   const isOpen = (c) => c.stage < LAST;
   const etaIsToday = (c, now) => c.eta != null && hasEta(c.stage) && dayStart(c.eta) === dayStart(now);
+  const isSnoozed = (c) => c.snoozeUntil != null && c.stage !== LAST;
   const etaGated = (c, now) => c.stage === 3 && c.eta != null && dayStart(now) < dayStart(c.eta);
   const cardTitle = (c) => (c.wo ? `WO # ${c.wo}` : c.ref ? `Ref # ${c.ref}` : 'Work order');
 
   function arLabel(c, now) {
-    if (c.stage === LAST) return 'Complete';
+    if (c.stage === LAST) return 'Closed';
     if (c.ar) return 'Action Required';
+    if (isSnoozed(c)) return 'Snoozed';
     if (c.lastFU != null && dayStart(c.lastFU) === dayStart(now)) return 'Followed-up Today';
     if (etaGated(c, now)) return 'Awaiting ETA';
     if (c.lastFU != null && daysBetween(c.lastFU, now) === 1) return 'Followed-up Yesterday';
@@ -1067,12 +1106,13 @@ details.history[open] > summary svg { transform: rotate(180deg); }
         c,
         g: open ? 0 : 1,
         em: emerRank(c),
+        sz: isSnoozed(c) ? 1 : 0,
         et: open && etaIsToday(c, now) ? 0 : 1,
         dsf: dsfDays(c, now),
         age: ageDays(c, now),
       };
     });
-    rows.sort((a, b) => a.g - b.g || a.em - b.em || a.et - b.et || (a.et === 0 && b.et === 0 ? a.c.eta - b.c.eta : 0)
+    rows.sort((a, b) => a.g - b.g || a.em - b.em || a.sz - b.sz || (a.sz && b.sz ? a.c.snoozeUntil - b.c.snoozeUntil : 0) || a.et - b.et || (a.et === 0 && b.et === 0 ? a.c.eta - b.c.eta : 0)
       || b.dsf - a.dsf || b.age - a.age || a.c.createdAt - b.c.createdAt);
     return rows.map((r) => r.c);
   }
@@ -1100,6 +1140,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       ? x.history.filter((h) => h && typeof h === 'object').map((h) => ({ stage: Math.round(num(h.stage, 0)), at: num(h.at, null) })).filter((h) => h.stage >= 1 && h.stage <= LAST && h.at != null)
       : [];
     if (!history.length) history = [{ stage, at: stageAt }];
+    const snoozeUntil = stage === LAST ? null : num(x.snoozeUntil, null);
     return {
       id: str(x.id) || uid(),
       ref: str(x.ref),
@@ -1112,7 +1153,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       history,
       contractorId: x.contractorId ? str(x.contractorId) : null,
       eta: num(x.eta, null),
-      ar: stage === LAST ? false : x.ar !== false,
+      ar: stage === LAST || snoozeUntil != null ? false : x.ar !== false,
       lastFU: num(x.lastFU, null),
       dsfFrom: num(x.dsfFrom, createdAt),
       sample: !!x.sample,
@@ -1120,6 +1161,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       noteAt: num(x.noteAt, null),
       noteStage: num(x.noteStage, null),
       emergency: !!x.emergency,
+      snoozeUntil,
     };
   }
   function normalizeDb(raw) {
@@ -1157,14 +1199,22 @@ details.history[open] > summary svg { transform: rotate(180deg); }
   //  - S11 cards never need action
   // Stage and ETA only change inside the app, and every change runs this first,
   // so checking the most recent 8am against the last check is enough.
+  //  - snoozed cards wait until their snooze time (to the minute), then need action again
   function evaluateAR(now) {
+    let changed = false;
+    for (const c of db.cards) {
+      if (c.snoozeUntil != null && c.snoozeUntil <= now) {
+        c.snoozeUntil = null;
+        if (c.stage !== LAST) c.ar = true;
+        changed = true;
+      }
+    }
     if (db.lastEval == null || now < db.lastEval) { db.lastEval = now; return true; }
     const L = latest8am(now);
-    let changed = false;
     if (L > db.lastEval) {
       const Lday = dayStart(L);
       for (const c of db.cards) {
-        if (c.ar || c.stage === LAST) continue;
+        if (c.ar || c.stage === LAST || c.snoozeUntil != null) continue;
         if (c.stage === 3 && c.eta != null && Lday < dayStart(c.eta)) continue;
         c.ar = true;
         changed = true;
@@ -1205,6 +1255,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     if (ui.tab === 0) renderOverview(now, counts); else renderStage(now);
     renderFoot();
     for (const s of sheetStack) if (s.opts.live && !(opts && opts.skip === s)) s.refresh();
+    scheduleWake();
   }
 
   function renderHead(now, counts) {
@@ -1245,12 +1296,13 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     const showEta = hasEta(c.stage) && c.eta != null;
     const state = c.stage === LAST ? 'complete' : c.ar ? 'ar' : 'done';
     const label = arLabel(c, now);
+    const snoozed = isSnoozed(c);
     const age = ageDays(c, now);
     const dsf = dsfDays(c, now);
-    const foot = hasCon(c.stage) || showEta
-      ? `<div class="woc-foot">${hasCon(c.stage) ? (con ? `<div class="woc-con">${esc(con.name)}</div>` : '<div class="woc-con none">No contractor</div>') : ''}${showEta ? `<div class="woc-eta"><span>${esc(fmtEta(c.eta))}</span>${etaIsToday(c, now) ? '<span class="eta-today">Today</span>' : ''}</div>` : ''}</div>`
+    const foot = hasCon(c.stage) || showEta || snoozed
+      ? `<div class="woc-foot">${hasCon(c.stage) ? (con ? `<div class="woc-con">${esc(con.name)}</div>` : '<div class="woc-con none">No contractor</div>') : ''}${showEta ? `<div class="woc-eta"><span>${esc(fmtEta(c.eta))}</span>${etaIsToday(c, now) ? '<span class="eta-today">Today</span>' : ''}</div>` : ''}${snoozed ? `<div class="woc-snooze">Snoozed until ${esc(fmtSnooze(c.snoozeUntil))}</div>` : ''}</div>`
       : '';
-    const aria = `${c.emergency ? 'Emergency. ' : ''}${cardTitle(c)}, ${c.store}, ${stageName(c.stage)}, ${label}${c.note ? `. Note: ${c.note}` : ''}`;
+    const aria = `${c.emergency ? 'Emergency. ' : ''}${cardTitle(c)}, ${c.store}, ${stageName(c.stage)}, ${label}${snoozed ? ` until ${fmtSnooze(c.snoozeUntil)}` : ''}${c.note ? `. Note: ${c.note}` : ''}`;
     const emer = c.emergency ? ' emer' : '';
     const attrs = opts.static
       ? `class="woc static ${state}${emer}" style="${scv(c.stage)}"`
@@ -1261,7 +1313,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     return `<article ${attrs}>
       <div class="woc-band"><span class="woc-stage">S${c.stage} · ${esc(opts.full ? s.full : s.short)}</span>${tags}</div>
       <div class="woc-face">
-        <div class="woc-top"><span class="woc-age">${ageLabel(age)}</span><span class="woc-status">${esc(label)}</span></div>
+        <div class="woc-top"><span class="woc-age">${ageLabel(age)}</span><span class="woc-status${snoozed ? ' snz' : ''}">${snoozed ? ICON.snooze : ''}${esc(label)}</span></div>
         <dl class="woc-ids"><div><dt>Ref #</dt><dd>${esc(c.ref) || '—'}</dd></div><div><dt>WO #</dt><dd>${esc(c.wo) || '—'}</dd></div></dl>
         <h3 class="woc-store">${esc(c.store)}</h3>
         ${c.note ? `<p class="woc-note"><span>${esc(c.note)}</span></p>` : ''}
@@ -1357,12 +1409,17 @@ details.history[open] > summary svg { transform: rotate(180deg); }
 
     const dsfOpen = ui.expanded === 'dsf';
     const etaOpen = ui.expanded === 'eta';
+    const snzOpen = ui.expanded === 'snoozed';
+    const snzList = open.filter(isSnoozed).sort((a, b) => emerRank(a) - emerRank(b) || a.snoozeUntil - b.snoozeUntil);
+    const nextWakeAt = snzList.reduce((m, c) => (m == null || c.snoozeUntil < m ? c.snoozeUntil : m), null);
     parts.push(`<div class="tiles">
         <button type="button" class="tile${dsfList.length ? ' warn' : ''}" data-act="toggle-list" data-list="dsf" aria-expanded="${dsfOpen}"><span class="tile-num">${dsfList.length}</span><span class="tile-lbl">DSF over 1</span><span class="tile-sub">No follow-up in 2+ days</span></button>
         <button type="button" class="tile${etaList.length ? ' good' : ''}" data-act="toggle-list" data-list="eta" aria-expanded="${etaOpen}"><span class="tile-num">${etaList.length}</span><span class="tile-lbl">ETAs Today</span><span class="tile-sub">${etaList.length ? 'Contractors due today' : 'None scheduled today'}</span></button>
+        <button type="button" class="tile wide" data-act="toggle-list" data-list="snoozed" aria-expanded="${snzOpen}"><span class="tile-num">${snzList.length}</span><span class="tile-lbl">Snoozed</span><span class="tile-sub">${nextWakeAt != null ? `Next one wakes ${esc(fmtSoon(nextWakeAt, now))}` : 'Nothing snoozed right now'}</span></button>
       </div>`);
     if (dsfOpen) parts.push(listHTML(dsfList, now, 'Every open work order has had a follow-up in the last day.'));
     if (etaOpen) parts.push(listHTML(etaList, now, 'No contractor ETAs fall on today.'));
+    if (snzOpen) parts.push(listHTML(snzList, now, 'Nothing is snoozed. Open a card and tap Snooze to hide it until a set time.'));
 
     if (oldest) {
       parts.push(`<button type="button" class="oldest" data-act="open-card" data-id="${esc(oldest.id)}" aria-label="Oldest open work order: ${esc(cardTitle(oldest))}, ${ageLabel(ageDays(oldest, now))}">
@@ -1607,9 +1664,111 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     const c = cardById(id);
     if (!c || c.ar || c.stage === LAST) return;
     c.ar = true;
+    c.snoozeUntil = null;
     save();
     render();
     showToast('Marked as follow-up needed');
+  }
+
+  // ---------- Snooze ----------
+  function snoozePresets(now) {
+    const d = new Date(now);
+    const at = (days, h) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + days, h, 0).getTime();
+    const toMonday = ((8 - d.getDay()) % 7) || 7;
+    const list = [
+      { label: 'In 2 hours', at: Math.ceil((now + 2 * 36e5) / 3e5) * 3e5 },
+      { label: 'Tomorrow 8am', at: at(1, 8) },
+      { label: 'Monday 8am', at: at(toMonday, 8) },
+      { label: 'In 1 week', at: at(7, 8) },
+    ];
+    return list.filter((p, i) => list.findIndex((q) => q.at === p.at) === i);
+  }
+
+  function openSnoozeSheet(id) {
+    const c = cardById(id);
+    if (!c || c.stage === LAST) return;
+    const editing = isSnoozed(c);
+    const now = Date.now();
+    const presets = snoozePresets(now);
+    const start = editing ? c.snoozeUntil : presets.find((p) => p.label === 'Tomorrow 8am').at;
+    openSheet({
+      kind: 'page',
+      cls: 'form-sheet',
+      title: editing ? 'Change Snooze' : 'Snooze Follow-Up',
+      render: () => `<form class="form" novalidate>
+          <p class="sheet-note"><b>${esc(cardTitle(c))}</b> won’t need follow-up until the time you pick. Then it turns green again. Snoozing isn’t a follow-up, so Days Since Follow-Up keeps counting.</p>
+          <div class="quick" role="group" aria-label="Quick picks">${presets.map((p) => `<button type="button" class="quick-btn" data-sact="quick" data-at="${p.at}" aria-pressed="false">${esc(p.label)}</button>`).join('')}</div>
+          <div class="field"><label for="snz-in">Snooze until</label><input id="snz-in" type="datetime-local" min="${toInput(now)}" value="${toInput(start)}"></div>
+          <p class="eta-preview" id="snz-prev"></p>
+          <p class="err" id="snz-err" hidden></p>
+          <div class="form-actions">
+            ${editing ? '<button type="button" class="btn btn-quiet danger-text" data-sact="end">End Snooze</button>' : ''}
+            <button type="button" class="btn btn-quiet" data-sact="close">Cancel</button>
+            <button type="submit" class="btn btn-ink">${editing ? 'Save Snooze' : 'Snooze'}</button>
+          </div>
+        </form>`,
+      onMount: (sh) => {
+        const inp = sh.el.querySelector('#snz-in');
+        sh.data.update = () => {
+          const v = fromInput(inp.value);
+          sh.el.querySelector('#snz-prev').textContent = v != null ? `Snoozed until ${fmtSnooze(v)}` : '';
+          sh.el.querySelector('#snz-err').hidden = true;
+          sh.el.querySelectorAll('.quick-btn').forEach((b) => b.setAttribute('aria-pressed', String(toInput(+b.dataset.at) === inp.value)));
+        };
+        inp.addEventListener('input', sh.data.update);
+        inp.addEventListener('change', sh.data.update);
+        sh.data.update();
+      },
+      acts: {
+        quick: (el, sh) => { sh.el.querySelector('#snz-in').value = toInput(+el.dataset.at); sh.data.update(); },
+        end: (el, sh) => { closeSheet(sh); endSnooze(id); },
+      },
+      onSubmit: (form, sh) => {
+        const v = fromInput(sh.el.querySelector('#snz-in').value);
+        const err = sh.el.querySelector('#snz-err');
+        const fail = (msg) => { err.textContent = msg; err.hidden = false; };
+        if (v == null) return fail('Pick the date and time to snooze until.');
+        if (v <= Date.now()) return fail('Pick a time later than now.');
+        closeSheet(sh);
+        doSnooze(id, v);
+      },
+    });
+  }
+
+  function doSnooze(id, until) {
+    evaluateAR(Date.now());
+    const c = cardById(id);
+    if (!c || c.stage === LAST) return;
+    const before = { ar: c.ar, snoozeUntil: c.snoozeUntil };
+    c.snoozeUntil = until;
+    c.ar = false;
+    save();
+    render();
+    showToast(`Snoozed until ${fmtSnooze(until)}`, () => {
+      const x = cardById(id);
+      if (!x) return;
+      Object.assign(x, before);
+      commit();
+      showToast('Snooze undone');
+    });
+  }
+
+  function endSnooze(id) {
+    evaluateAR(Date.now());
+    const c = cardById(id);
+    if (!c || !isSnoozed(c)) return;
+    const before = { ar: c.ar, snoozeUntil: c.snoozeUntil };
+    c.snoozeUntil = null;
+    c.ar = true;
+    save();
+    render();
+    showToast('Snooze ended. Follow-up needed', () => {
+      const x = cardById(id);
+      if (!x) return;
+      Object.assign(x, before);
+      commit();
+      showToast('Snooze restored');
+    });
   }
 
   function doMove(id, to, extra) {
@@ -1618,14 +1777,14 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     evaluateAR(now);
     const c = cardById(id);
     if (!c || to < 1 || to > LAST || to === c.stage) return;
-    const before = { stage: c.stage, stageAt: c.stageAt, history: c.history.slice(), contractorId: c.contractorId, eta: c.eta, ar: c.ar };
+    const before = { stage: c.stage, stageAt: c.stageAt, history: c.history.slice(), contractorId: c.contractorId, eta: c.eta, ar: c.ar, snoozeUntil: c.snoozeUntil };
     c.stage = to;
     c.stageAt = now;
     c.history = c.history.concat([{ stage: to, at: now }]);
     if ('contractorId' in extra) c.contractorId = extra.contractorId;
     if ('eta' in extra) c.eta = extra.eta;
     if (to >= 8) c.eta = null;
-    if (to === LAST) c.ar = false;
+    if (to === LAST) { c.ar = false; c.snoozeUntil = null; }
     save();
     render();
     showToast(`Moved to ${stageName(to)}`, () => {
@@ -1761,6 +1920,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
           commitNote(sh);
         },
         followup: (el, sh) => doFollowUp(sh.data.id),
+        snooze: (el, sh) => openSnoozeSheet(sh.data.id),
         remark: async (el, sh) => {
           const c = cardById(sh.data.id);
           if (!c || c.ar || c.stage === LAST) return;
@@ -1853,10 +2013,16 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     const prv = c.stage > 1 ? c.stage - 1 : null;
     const sd = stageDays(c, now);
 
+    let fuBlock;
+    if (c.stage === LAST) fuBlock = '<div class="fu-state">This work order is closed. Clear it out at month end with EOM Completion Wipe.</div>';
+    else if (isSnoozed(c)) fuBlock = `<button type="button" class="btn btn-xl fu-again snoozed" data-sact="snooze">${ICON.snooze}<span class="lbl"><span>Snoozed until ${esc(fmtSnooze(c.snoozeUntil))}</span><small>Tap to change or end the snooze</small></span></button>`;
+    else {
+      fuBlock = `<div class="fu-row">${c.ar
+        ? `<button type="button" class="btn btn-ink btn-xl" data-sact="followup">${ICON.check}<span>Followed Up</span></button>`
+        : `<button type="button" class="btn btn-xl fu-again" data-sact="remark">${ICON.check}<span class="lbl"><span>${esc(arLabel(c, now))}</span><small>Tap to mark as follow-up needed</small></span></button>`}<button type="button" class="btn btn-ghost btn-snooze" data-sact="snooze">${ICON.snooze}<span>Snooze</span></button></div>`;
+    }
     const actions = `<div class="dt-actions">
-      ${c.stage === LAST ? '<div class="fu-state">This work order is complete. Clear it out at month end with EOM Completion Wipe.</div>'
-        : c.ar ? `<button type="button" class="btn btn-ink btn-xl" data-sact="followup">${ICON.check}<span>Followed Up</span></button>`
-        : `<button type="button" class="btn btn-xl fu-again" data-sact="remark">${ICON.check}<span class="lbl"><span>${esc(arLabel(c, now))}</span><small>Tap to mark as follow-up needed</small></span></button>`}
+      ${fuBlock}
       ${nxt ? `<button type="button" class="btn btn-go btn-xl btn-stack" data-sact="next"><span class="lbl"><span>Next Stage</span><small>${esc(stageName(nxt))}</small></span>${ICON.right}</button>` : ''}
       ${prv ? `<button type="button" class="btn btn-back" data-sact="prev">${ICON.left}<span>Previous</span><small>${esc(stageName(prv))}</small></button>` : ''}
     </div>`;
@@ -1865,7 +2031,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       <div class="kv-switch"><dt><label for="dt-emer">${c.emergency ? ICON.alert : ''}Emergency</label></dt><dd><input id="dt-emer" type="checkbox" role="switch" class="switch"${c.emergency ? ' checked' : ''}></dd></div>
       <div><dt>Current Stage</dt><dd><span class="dot" style="${scv(c.stage)}"></span>${esc(stageName(c.stage))}</dd></div>
       <div><dt>Days in Current Stage</dt><dd>${plural(sd, 'day', 'days')}</dd></div>
-      <div><dt>AR</dt><dd>${esc(arLabel(c, now))}</dd></div>
+      <div><dt>AR</dt><dd>${esc(isSnoozed(c) ? `Snoozed until ${fmtSnooze(c.snoozeUntil)}` : arLabel(c, now))}</dd></div>
       <div><dt>Last Follow-up</dt><dd>${c.lastFU != null ? esc(fmtDT(c.lastFU)) : 'None yet'}</dd></div>
       <div><dt>Days Since Follow-Up</dt><dd>${dsfDays(c, now)}</dd></div>
       <div><dt>Origin Date</dt><dd>${esc(fmtDT(c.origin))}</dd></div>
@@ -2377,10 +2543,11 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       if (s.state === 'complete') { ar = false; lastFU = past(-s.inStage, 9, 40); dsfFrom = lastFU; }
       if (s.stage === 3 && eta != null && L < at8(eta)) ar = false;
       const note = SAMPLE_NOTES[s.wo] || '';
-      db.cards.push({ id: uid(), ref: s.ref, wo: s.wo, store: s.store, origin, createdAt: origin, stage: s.stage, stageAt, history, contractorId: s.con ? conIds[s.con] : null, eta, ar, lastFU, dsfFrom, sample: true, note, noteAt: note ? stageAt : null, noteStage: note ? s.stage : null, emergency: SAMPLE_EMERGENCY.has(s.wo) });
+      db.cards.push({ id: uid(), ref: s.ref, wo: s.wo, store: s.store, origin, createdAt: origin, stage: s.stage, stageAt, history, contractorId: s.con ? conIds[s.con] : null, eta, ar: SAMPLE_SNOOZE[s.wo] ? false : ar, lastFU, dsfFrom, sample: true, note, noteAt: note ? stageAt : null, noteStage: note ? s.stage : null, emergency: SAMPLE_EMERGENCY.has(s.wo), snoozeUntil: SAMPLE_SNOOZE[s.wo] ? ymd(SAMPLE_SNOOZE[s.wo][0], SAMPLE_SNOOZE[s.wo][1], 0) : null });
     }
     setFlag(NOTES_SEEDED_KEY);
     setFlag(EMER_SEEDED_KEY);
+    setFlag(SNOOZE_SEEDED_KEY);
     db.lastEval = now;
     save();
     render();
@@ -2392,6 +2559,15 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       if (c.sample && !c.note && SAMPLE_NOTES[c.wo]) { c.note = SAMPLE_NOTES[c.wo]; c.noteAt = c.stageAt; c.noteStage = c.stage; }
     }
     setFlag(NOTES_SEEDED_KEY);
+  }
+  function backfillSampleSnooze() {
+    if (getFlag(SNOOZE_SEEDED_KEY)) return;
+    const d = new Date();
+    for (const c of db.cards) {
+      const s = c.sample && c.stage !== LAST && c.snoozeUntil == null ? SAMPLE_SNOOZE[c.wo] : null;
+      if (s) { c.snoozeUntil = new Date(d.getFullYear(), d.getMonth(), d.getDate() + s[0], s[1], 0).getTime(); c.ar = false; }
+    }
+    setFlag(SNOOZE_SEEDED_KEY);
   }
   function backfillSampleEmergency() {
     if (getFlag(EMER_SEEDED_KEY)) return;
@@ -2488,11 +2664,18 @@ details.history[open] > summary svg { transform: rotate(180deg); }
   })();
 
   // ---------- Clock ----------
-  let eightTimer = null;
-  function scheduleEight() {
-    clearTimeout(eightTimer);
-    const wait = Math.min(next8am(Date.now()) - Date.now() + 1500, 6 * 36e5);
-    eightTimer = setTimeout(() => { tick(); scheduleEight(); }, Math.max(1000, wait));
+  // Wakes the app at the next 8am or the next snooze end, whichever comes first.
+  let wakeTimer = null;
+  function nextWake(now) {
+    let t = next8am(now);
+    for (const c of db.cards) if (c.snoozeUntil != null && c.snoozeUntil > now && c.snoozeUntil < t) t = c.snoozeUntil;
+    return t;
+  }
+  function scheduleWake() {
+    clearTimeout(wakeTimer);
+    const now = Date.now();
+    const wait = Math.min(nextWake(now) - now + 1000, 6 * 36e5);
+    wakeTimer = setTimeout(() => { tick(); scheduleWake(); }, Math.max(1000, wait));
   }
   function tick(force) {
     const now = Date.now();
@@ -2513,15 +2696,14 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     }
     backfillSampleNotes();
     backfillSampleEmergency();
+    backfillSampleSnooze();
     evaluateAR(Date.now());
     save();
     render();
-    scheduleEight();
     setInterval(tick, 30000);
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) { if (ui.detail) commitNote(ui.detail); return; }
       tick(true);
-      scheduleEight();
     });
     window.addEventListener('focus', () => tick());
     window.addEventListener('pageshow', (e) => { if (e.persisted) tick(true); });

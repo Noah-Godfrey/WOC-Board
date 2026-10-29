@@ -16,7 +16,9 @@ A phone-first follow-up tracker for work orders moving through the contractor li
 - **Green means Action Required. Grey means followed up.** Every card turns green again at 8am each day, except:
   - **S3 Contractor Accepted** cards wait until 8am on the ETA date.
   - **S11 Work Order Closed** cards never need action.
+  - **Snoozed** cards wait until their snooze time.
 - Open a card and tap **Followed Up** to turn it grey. That resets its Days Since Follow-Up (DSF). If more comes up the same day, tap the grey button and confirm **Mark as Follow-Up Needed?** to turn it green again.
+- **Snooze**: open a card and tap **Snooze** to pick a day and time (or a quick pick like Tomorrow 8am). The card turns grey and skips the 8am reset until then, then turns green at that exact time. Snoozing isn't a follow-up, so Days Since Follow-Up keeps counting. Tap the grey Snoozed button to change or end it. The Overview shows how many cards are snoozed.
 - **Notes** give a card context at its current stage (for example, "Waiting on PO from DM"). They show under the store name and are edited in the card's detail view, which also shows when the note was last updated and in which stage.
 - **Emergency** work orders: switch on Emergency when you add the card, or later in its detail view. The card's stage band gets white diagonal stripes and an Emergency label in every stage, through S11, until you switch it off or delete the card.
 - Green cards sort in this order: **emergencies**, then **today's ETAs**, then the highest **DSF**. Grey cards drop to the bottom, with emergencies first among them.
