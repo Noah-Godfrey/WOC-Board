@@ -1,6 +1,6 @@
 // Offline support for WOC Follow-Up Board. Your work orders are NOT stored here;
 // they live in the browser's local storage. This only caches the app itself.
-const CACHE = 'woc-app-20261029142718';
+const CACHE = 'woc-app-20261029175159';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
