@@ -978,6 +978,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
 .zone-row { grid-template-columns: minmax(0, 1fr) auto; }
 .zone-row svg { width: 22px; height: 22px; color: var(--ar); }
 .zone-row[aria-pressed="true"] { background: var(--surface); }
+.pick-name .pick-tag + .pick-tag { margin-left: 6px; }
 .pick-tag.soft { background: var(--surface); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); }
 .kv dd .woc-local { padding: 4px 10px 4px 8px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); font-size: 14.5px; white-space: normal; }
 .kv dd .woc-local.off { background: var(--offhours); color: var(--offhours-ink); box-shadow: none; }
@@ -1046,6 +1047,22 @@ details.history[open] > summary svg { transform: rotate(180deg); }
   const SAMPLE_STORES = { '87802': 'DG 09421 Flagstaff, AZ', '87790': 'DG 13377 Boise, ID', '87655': 'DG 10288 Knoxville, TN', '87201': 'DG 12980 Bakersfield, CA' };
   const SAMPLE_STORE_ZONES = { 'dg 10288 knoxville, tn': 'America/New_York' };
   const ALERTS_SEEDED_KEY = 'wocBoard.sampleAlerts';
+  const CON_FIELDS_SEEDED_KEY = 'wocBoard.sampleConFields';
+  const SAMPLE_CON_FIELDS = {
+    'Prairie Mechanical': ['KS, TN', 'Dollar General'],
+    'Heartland Door & Glass': ['KS', 'Dollar General'],
+    'Sunflower Electric': ['AZ, CA', 'Dollar General'],
+    'Flint Hills Plumbing': ['KS, ID', 'Family Dollar'],
+    'Midwest Roof Pros': ['KS', 'Dollar Tree'],
+  };
+  function backfillSampleConFields() {
+    if (getFlag(CON_FIELDS_SEEDED_KEY)) return;
+    for (const c of db.contractors) {
+      const f = c.sample ? SAMPLE_CON_FIELDS[c.name] : null;
+      if (f && !c.state && !c.brand) { c.state = f[0]; c.brand = f[1]; }
+    }
+    setFlag(CON_FIELDS_SEEDED_KEY);
+  }
   const SAMPLE_ALERT_WOS = ['87512', '87655'];
   function seedSampleAlerts() {
     const now = Date.now();
@@ -1254,6 +1271,19 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     }
     return null;
   }
+  // "KS", "Kansas", "KS, MO" or "Kansas & Missouri" all work.
+  function statesIn(text) {
+    const out = new Set();
+    const s = String(text || '');
+    for (const tok of s.split(/[^A-Za-z]+/)) if (tok.length === 2 && STATES[tok.toUpperCase()]) out.add(tok.toUpperCase());
+    const low = ` ${s.toLowerCase().replace(/[^a-z]+/g, ' ')} `;
+    for (const [name, code] of STATE_NAMES) if (low.includes(` ${name} `)) out.add(code);
+    return out;
+  }
+  const tidyState = (s) => s.replace(/\b([A-Za-z]{2})\b/g, (m) => (STATES[m.toUpperCase()] ? m.toUpperCase() : m));
+  const conSummary = (c) => [c.state, c.brand].filter(Boolean).join(' · ');
+  const conMatches = (c, q) => [c.name, c.notes, c.state, c.brand, c.phone, c.email].some((v) => norm(v).includes(q));
+
   function storeZone(store) {
     const k = norm(store);
     const saved = k && db.storeZones ? db.storeZones[k] : null;
@@ -1341,7 +1371,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     if (!x || typeof x !== 'object') return null;
     const name = str(x.name);
     if (!name) return null;
-    return { id: str(x.id) || uid(), name, email: str(x.email), phone: str(x.phone), notes: x.notes == null ? '' : String(x.notes).trim(), createdAt: num(x.createdAt, Date.now()), sample: !!x.sample };
+    return { id: str(x.id) || uid(), name, state: str(x.state), brand: str(x.brand), email: str(x.email), phone: str(x.phone), notes: x.notes == null ? '' : String(x.notes).trim(), createdAt: num(x.createdAt, Date.now()), sample: !!x.sample };
   }
   function normCard(x, now) {
     if (!x || typeof x !== 'object') return null;
@@ -2091,6 +2121,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
         currentId: c.contractorId,
         title: c.stage === 1 ? 'Assign Contractor' : 'Choose Contractor',
         note: `Moving ${who} to <b>S2 Dispatch Sent</b>. Pick the contractor who has it.`,
+        store: c.store,
         onPick: (cid) => doMove(id, 2, { contractorId: cid }),
       });
       return;
@@ -2229,7 +2260,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
         'change-con': (el, sh) => {
           const c = cardById(sh.data.id);
           if (!c) return;
-          openContractorPicker({ currentId: c.contractorId, title: 'Change Contractor', note: `Pick the contractor for ${esc(cardTitle(c))}.`, onPick: (cid) => setContractor(c.id, cid) });
+          openContractorPicker({ currentId: c.contractorId, store: c.store, title: 'Change Contractor', note: `Pick the contractor for ${esc(cardTitle(c))}.`, onPick: (cid) => setContractor(c.id, cid) });
         },
         copy: (el) => copyText(el.dataset.copy),
         'edit-info': (el, sh) => { const c = cardById(sh.data.id); if (c) openCardForm({ card: c }); },
@@ -2335,7 +2366,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       const phone = con && con.phone ? `<a href="tel:${esc(con.phone.replace(/[^\d+]/g, ''))}">${esc(con.phone)}</a><button type="button" class="mini" data-sact="copy" data-copy="${esc(con.phone)}" aria-label="Copy phone number">${ICON.copy}</button>` : '<span class="muted">Not on file</span>';
       const email = con && con.email ? `<a href="mailto:${esc(con.email)}">${esc(con.email)}</a><button type="button" class="mini" data-sact="copy" data-copy="${esc(con.email)}" aria-label="Copy email address">${ICON.copy}</button>` : '<span class="muted">Not on file</span>';
       conSec = `<section class="dt-sec"><h3>Contractor</h3>
-        ${con ? `<p class="con-name">${esc(con.name)}</p><dl class="kv"><div><dt>Phone #</dt><dd>${phone}</dd></div><div><dt>Email</dt><dd>${email}</dd></div></dl>${con.notes ? `<div class="con-notes"><h4>Notes</h4><p>${esc(con.notes)}</p></div>` : ''}` : '<p class="muted">No contractor assigned.</p>'}
+        ${con ? `<p class="con-name">${esc(con.name)}</p><dl class="kv"><div><dt>State</dt><dd>${con.state ? esc(con.state) : '<span class="muted">Not on file</span>'}</dd></div><div><dt>Store Brand</dt><dd>${con.brand ? esc(con.brand) : '<span class="muted">Not on file</span>'}</dd></div><div><dt>Phone #</dt><dd>${phone}</dd></div><div><dt>Email</dt><dd>${email}</dd></div></dl>${con.notes ? `<div class="con-notes"><h4>Notes</h4><p>${esc(con.notes)}</p></div>` : ''}` : '<p class="muted">No contractor assigned.</p>'}
         <div class="dt-row-btns"><button type="button" class="btn btn-ghost" data-sact="change-con">${ICON.users}<span>Change Contractor</span></button></div>
       </section>`;
     }
@@ -2580,17 +2611,18 @@ details.history[open] > summary svg { transform: rotate(180deg); }
 
   const sortedContractors = () => db.contractors.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
-  function openContractorPicker({ currentId, title, note, onPick }) {
+  function openContractorPicker({ currentId, title, note, store, onPick }) {
     const st = { q: '' };
+    const woState = stateOf(store);
     const rows = () => {
       if (!db.contractors.length) return '<li class="pick-empty">No contractors yet. Add the first one with New Contractor.</li>';
       const q = norm(st.q);
       let list = sortedContractors();
-      if (q) list = list.filter((c) => norm(c.name).includes(q) || norm(c.notes).includes(q));
+      if (q) list = list.filter((c) => conMatches(c, q));
       if (!list.length) return `<li class="pick-empty">No contractors match “${esc(st.q.trim())}”.</li>`;
-      const cur = list.findIndex((c) => c.id === currentId);
-      if (cur > 0) list.unshift(list.splice(cur, 1)[0]);
-      return list.map((c) => `<li><button type="button" class="pick-row" data-sact="pick" data-id="${esc(c.id)}"><span class="pick-name">${esc(c.name)}${c.id === currentId ? '<span class="pick-tag">Current</span>' : ''}</span><span class="pick-meta">${openCountFor(c.id)} open</span>${ICON.right}</button></li>`).join('');
+      const same = (c) => !!woState && statesIn(c.state).has(woState);
+      list.sort((a, b) => (b.id === currentId) - (a.id === currentId) || same(b) - same(a));
+      return list.map((c) => `<li><button type="button" class="pick-row" data-sact="pick" data-id="${esc(c.id)}"><span class="pick-name">${esc(c.name)}${c.id === currentId ? '<span class="pick-tag">Current</span>' : ''}${same(c) ? `<span class="pick-tag soft">${esc(woState)}</span>` : ''}${conSummary(c) ? `<span class="pick-sub">${esc(conSummary(c))}</span>` : ''}</span><span class="pick-meta">${openCountFor(c.id)} open</span>${ICON.right}</button></li>`).join('');
     };
     openSheet({
       kind: 'page',
@@ -2598,7 +2630,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       title,
       render: () => `${note ? `<p class="sheet-note">${note}</p>` : ''}
         <div class="picker-tools">
-          <label class="search-box"><span class="sr-only">Search contractors</span>${ICON.search}<input id="cp-q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search contractors"></label>
+          <label class="search-box"><span class="sr-only">Search contractors</span>${ICON.search}<input id="cp-q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search name, state or brand"></label>
           <button type="button" class="btn btn-ghost btn-wide" data-sact="new">${ICON.plus}<span>New Contractor</span></button>
         </div>
         <ul class="pick-list" id="cp-list">${rows()}</ul>`,
@@ -2616,7 +2648,9 @@ details.history[open] > summary svg { transform: rotate(180deg); }
 
   function openContractorForm({ contractor, prefillName, onSaved }) {
     const isNew = !contractor;
-    const v = contractor || { name: prefillName || '', email: '', phone: '', notes: '' };
+    const v = contractor || { name: prefillName || '', state: '', brand: '', email: '', phone: '', notes: '' };
+    const brands = [...new Set(['Dollar General', 'Dollar Tree', 'Family Dollar', ...db.contractors.map((c) => c.brand).filter(Boolean)])].sort((a, b) => a.localeCompare(b));
+    const stateOpts = Object.keys(STATES).map((k) => `<option value="${k}">${esc(STATES[k][0])}</option>`).join('');
     openSheet({
       kind: 'page',
       cls: 'form-sheet',
@@ -2626,6 +2660,8 @@ details.history[open] > summary svg { transform: rotate(180deg); }
         const used = isNew ? 0 : db.cards.filter((c) => c.contractorId === contractor.id).length;
         return `<form class="form" novalidate>
           <div class="field"><label for="cf-name">Contractor Name</label><input id="cf-name" autocomplete="organization" autocapitalize="words" enterkeyhint="next" value="${esc(v.name)}"></div>
+          <div class="field"><label for="cf-state">State</label><input id="cf-state" list="cf-states" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="KS, or KS, MO" value="${esc(v.state)}"><datalist id="cf-states">${stateOpts}</datalist></div>
+          <div class="field"><label for="cf-brand">Store Brand</label><input id="cf-brand" list="cf-brands" autocomplete="off" autocapitalize="words" enterkeyhint="next" placeholder="Dollar General" value="${esc(v.brand)}"><datalist id="cf-brands">${brands.map((x) => `<option value="${esc(x)}"></option>`).join('')}</datalist></div>
           <div class="field"><label for="cf-email">Email</label><input id="cf-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" value="${esc(v.email)}"></div>
           <div class="field"><label for="cf-phone">Phone #</label><input id="cf-phone" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="next" value="${esc(v.phone)}"></div>
           <div class="field"><label for="cf-notes">Notes</label><textarea id="cf-notes" rows="4">${esc(v.notes)}</textarea></div>
@@ -2637,6 +2673,8 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       onSubmit: (form, sh) => {
         const $ = (s) => sh.el.querySelector(s);
         const name = $('#cf-name').value.trim();
+        const state = tidyState($('#cf-state').value.trim().replace(/\s+/g, ' '));
+        const brand = $('#cf-brand').value.trim().replace(/\s+/g, ' ');
         const email = $('#cf-email').value.trim();
         const phone = $('#cf-phone').value.trim();
         const notes = $('#cf-notes').value.trim();
@@ -2648,11 +2686,11 @@ details.history[open] > summary svg { transform: rotate(180deg); }
         if (dup) return fail(`${dup.name} is already in your contractor list.`, '#cf-name');
         let saved;
         if (isNew) {
-          saved = { id: uid(), name, email, phone, notes, createdAt: Date.now(), sample: false };
+          saved = { id: uid(), name, state, brand, email, phone, notes, createdAt: Date.now(), sample: false };
           db.contractors.push(saved);
         } else {
           saved = conById(contractor.id);
-          if (saved) Object.assign(saved, { name, email, phone, notes, sample: false });
+          if (saved) Object.assign(saved, { name, state, brand, email, phone, notes, sample: false });
         }
         save();
         closeSheet(sh);
@@ -2677,9 +2715,9 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     const rows = () => {
       if (!db.contractors.length) return '<li class="pick-empty">No contractors yet. They’re added here or when you move a card into S2.</li>';
       const q = norm(st.q);
-      const list = sortedContractors().filter((c) => !q || norm(c.name).includes(q) || norm(c.notes).includes(q) || norm(c.phone).includes(q) || norm(c.email).includes(q));
+      const list = sortedContractors().filter((c) => !q || conMatches(c, q));
       if (!list.length) return `<li class="pick-empty">No contractors match “${esc(st.q.trim())}”.</li>`;
-      return list.map((c) => `<li><button type="button" class="pick-row" data-sact="edit" data-id="${esc(c.id)}"><span class="pick-name">${esc(c.name)}<span class="pick-sub">${esc([c.phone, c.email].filter(Boolean).join(' · ') || 'No phone or email on file')}</span></span><span class="pick-meta">${openCountFor(c.id)} open</span>${ICON.right}</button></li>`).join('');
+      return list.map((c) => `<li><button type="button" class="pick-row" data-sact="edit" data-id="${esc(c.id)}"><span class="pick-name">${esc(c.name)}<span class="pick-sub">${esc([c.state, c.brand, c.phone].filter(Boolean).join(' · ') || 'No details on file')}</span></span><span class="pick-meta">${openCountFor(c.id)} open</span>${ICON.right}</button></li>`).join('');
     };
     openSheet({
       kind: 'page',
@@ -2687,7 +2725,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       title: 'Manage Contractors',
       live: true,
       render: () => `<div class="picker-tools">
-          <label class="search-box"><span class="sr-only">Search contractors</span>${ICON.search}<input id="cl-q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search contractors" value="${esc(st.q)}"></label>
+          <label class="search-box"><span class="sr-only">Search contractors</span>${ICON.search}<input id="cl-q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search name, state or brand" value="${esc(st.q)}"></label>
           <button type="button" class="btn btn-ghost btn-wide" data-sact="new">${ICON.plus}<span>New Contractor</span></button>
         </div>
         <ul class="pick-list" id="cl-list">${rows()}</ul>`,
@@ -2887,6 +2925,13 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       flint: ['Flint Hills Plumbing', 'jobs@flinthillsplumbing.example', '(620) 555-0190', 'Water heaters and drains. Usually quotes the same day.'],
       roof: ['Midwest Roof Pros', 'help@midwestroofpros.example', '(402) 555-0155', ''],
     };
+    const conMore = {
+      prairie: ['KS, TN', 'Dollar General'],
+      heartland: ['KS', 'Dollar General'],
+      sunflower: ['AZ, CA', 'Dollar General'],
+      flint: ['KS, ID', 'Family Dollar'],
+      roof: ['KS', 'Dollar Tree'],
+    };
     const conIds = {};
     for (const k of Object.keys(cons)) {
       const [name, email, phone, notes] = cons[k];
@@ -2894,7 +2939,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       if (existing) { conIds[k] = existing.id; continue; }
       const id = uid();
       conIds[k] = id;
-      db.contractors.push({ id, name, email, phone, notes, createdAt: now, sample: true });
+      db.contractors.push({ id, name, state: conMore[k][0], brand: conMore[k][1], email, phone, notes, createdAt: now, sample: true });
     }
     const specs = [
       { ref: '4410238', wo: '88123', store: 'DG 12205 Topeka, KS', stage: 1, origin: [0, 7, 40], inStage: 0, state: 'ar', dsf: 0 },
@@ -2938,6 +2983,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     setFlag(SNOOZE_SEEDED_KEY);
     for (const k of Object.keys(SAMPLE_STORE_ZONES)) if (!db.storeZones[k]) db.storeZones[k] = SAMPLE_STORE_ZONES[k];
     setFlag(ZONES_SEEDED_KEY);
+    setFlag(CON_FIELDS_SEEDED_KEY);
     seedSampleAlerts();
     db.lastEval = now;
     save();
@@ -3114,6 +3160,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
     backfillSampleEmergency();
     backfillSampleSnooze();
     backfillSampleZones();
+    backfillSampleConFields();
     if (db.alertsSince == null) db.alertsSince = Date.now();
     if (!getFlag(ALERTS_SEEDED_KEY) && db.cards.some((c) => c.sample)) seedSampleAlerts();
     const cutoff = Date.now() - 14 * DAY;
@@ -3136,7 +3183,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
   }
 
   // Exposed for automated tests only.
-  window.__woc = { get db() { return db; }, unreadCount, evaluateAR, sortCards, dsfDays, ageDays, arLabel, latest8am, render, goTab, stateOf, storeZone, localParts };
+  window.__woc = { get db() { return db; }, unreadCount, statesIn, evaluateAR, sortCards, dsfDays, ageDays, arLabel, latest8am, render, goTab, stateOf, storeZone, localParts };
 
   boot();
 })();

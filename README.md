@@ -52,7 +52,7 @@ Clearing your browser's website data will erase the board, so back up first.
 
 ## Settings
 
-- **Manage Contractors**: edit names, emails, phone numbers, and notes.
+- **Manage Contractors**: edit names, state, store brand, emails, phone numbers, and notes. When you assign a contractor, the ones whose State matches the work order's store are listed first.
 - **Create Backup / Load Backup**
 - **EOM Completion Wipe**: removes the cards in S11 Work Order Closed and nothing else.
 - **Reset All Data**: deletes every work order (two confirmations). The contractor list stays.
