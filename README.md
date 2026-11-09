@@ -23,7 +23,7 @@ A phone-first follow-up tracker for work orders moving through the contractor li
 - **Alerts**: when a contractor's ETA passes (S3 through S7) or a snooze ends, a banner drops in under the header. Tap it to open the work order, or tap × to dismiss. The bell at the top shows unread alerts and lists them. Alerts show inside the app only: if it's closed when one is due, you'll see it the next time you open it.
 - **Notes** give a card context at its current stage (for example, "Waiting on PO from DM"). They show under the store name and are edited in the card's detail view, which also shows when the note was last updated and in which stage.
 - **Emergency** work orders: switch on Emergency when you add the card, or later in its detail view. The card's stage band gets white diagonal stripes and an Emergency label in every stage, through S11, until you switch it off or delete the card.
-- Green cards sort in this order: **emergencies**, then **today's ETAs**, then the highest **DSF**. Grey cards drop to the bottom, with emergencies first among them.
+- Green cards sort in this order: **emergencies**, then **today's ETAs**, then the highest **DSF**. In lists that mix stages (like Require Follow-Up), cards in **S8 and later** sort below every card in S1–S7, since the work is already done; the same order applies within each group. Grey cards drop to the bottom, with emergencies first among them.
 - **Next Stage** and **Previous** move a card. Moving into S2 asks for the contractor, and moving into S3 asks for the ETA. Moving from S3 back to S2 asks for a contractor again. Every move shows an **Undo** button for 5 seconds.
 
 ### Stages

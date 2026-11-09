@@ -1341,6 +1341,9 @@ details.history[open] > summary svg { transform: rotate(180deg); }
   // Cards already followed up (grey) drop to the bottom, emergencies first among them.
   // Completed cards list emergencies first, then newest first.
   const emerRank = (c) => (c.emergency ? 0 : 1);
+  // Once the work is done (S8 Work Complete and later), a card is less time sensitive:
+  // in lists that mix stages it sorts below every card still in S1–S7.
+  const tierRank = (c) => (c.stage >= 8 ? 1 : 0);
   function sortCards(list, now, stage) {
     if (stage === LAST) return list.slice().sort((a, b) => emerRank(a) - emerRank(b) || b.stageAt - a.stageAt);
     const rows = list.map((c) => {
@@ -1348,6 +1351,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
       return {
         c,
         g: open ? 0 : 1,
+        tier: tierRank(c),
         em: emerRank(c),
         sz: isSnoozed(c) ? 1 : 0,
         et: open && etaIsToday(c, now) ? 0 : 1,
@@ -1355,7 +1359,7 @@ details.history[open] > summary svg { transform: rotate(180deg); }
         age: ageDays(c, now),
       };
     });
-    rows.sort((a, b) => a.g - b.g || a.em - b.em || a.sz - b.sz || (a.sz && b.sz ? a.c.snoozeUntil - b.c.snoozeUntil : 0) || a.et - b.et || (a.et === 0 && b.et === 0 ? a.c.eta - b.c.eta : 0)
+    rows.sort((a, b) => a.g - b.g || a.tier - b.tier || a.em - b.em || a.sz - b.sz || (a.sz && b.sz ? a.c.snoozeUntil - b.c.snoozeUntil : 0) || a.et - b.et || (a.et === 0 && b.et === 0 ? a.c.eta - b.c.eta : 0)
       || b.dsf - a.dsf || b.age - a.age || a.c.createdAt - b.c.createdAt);
     return rows.map((r) => r.c);
   }
